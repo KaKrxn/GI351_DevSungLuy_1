@@ -1,62 +1,80 @@
 ﻿using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerControllerTest : MonoBehaviour
+public class PlayerController : MonoBehaviour
 {
-    public float walkSpeed = 4f, runSpeed = 7f, acceleration = 20f;
-    public float jumpHeight = 1.5f, gravity = -20f;
-    public float rotationSpeed = 720f;
-    public bool moveRelativeToCamera = true;
+    public float acceleration = 500f; // แรงเร่ง
+    public float maxSpeed = 20f;      // ความเร็วสูงสุด
+    public float turnSpeed = 100f;    // ความเร็วการเลี้ยว
+    public float brakeForce = 1000f;  // แรงเบรก
+    public Transform centerOfMass;    // จุดศูนย์ถ่วง (ทำให้รถไม่ล้ม)
 
-    CharacterController controller;
-    Vector3 velocity;
-    Camera cam;
+    private Rigidbody rb;
+    private float moveInput;
+    private float steerInput;
 
     void Awake()
     {
-        controller = GetComponent<CharacterController>();
-        cam = Camera.main;
-        
-        if (controller != null && !controller.enabled) controller.enabled = true;
+        rb = GetComponent<Rigidbody>();
+        rb.mass = 1500f; // น้ำหนักประมาณรถเก๋ง
+        rb.linearDamping = 0.2f;  // ต้านแรง
+        rb.angularDamping = 3f; // ลดการหมุนเกินจริง
+        rb.linearDamping = 0.5f;
+
+        if (centerOfMass != null)
+            rb.centerOfMass = centerOfMass.localPosition;
     }
 
     void Update()
     {
-        if (controller == null || !controller.enabled) return; 
+        moveInput = Input.GetAxis("Vertical");   // W/S = เดินหน้า/ถอยหลัง
+        steerInput = Input.GetAxis("Horizontal"); // A/D = เลี้ยว
+    }
 
-        float ix = Input.GetAxisRaw("Horizontal");
-        float iz = Input.GetAxisRaw("Vertical");
-        Vector2 inVec = Vector2.ClampMagnitude(new Vector2(ix, iz), 1f);
-        bool wantRun = Input.GetKey(KeyCode.LeftShift);
+    void FixedUpdate()
+{
+    Vector3 localVel = transform.InverseTransformDirection(rb.linearVelocity);
+    float currentSpeed = localVel.z;
 
-        Vector3 fwd, right;
-        if (moveRelativeToCamera && cam != null)
-        {
-            fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
-            right = Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized;
-        }
-        else { fwd = Vector3.forward; right = Vector3.right; }
+    // เร่ง
+    if (Mathf.Abs(moveInput) > 0.1f)
+    {
+        if (Mathf.Abs(currentSpeed) < maxSpeed)
+            rb.AddForce(transform.forward * moveInput * acceleration * Time.fixedDeltaTime, ForceMode.Acceleration);
+    }
+    else
+    {
+        // Auto-Brake
+        rb.AddForce(-rb.linearVelocity.normalized * brakeForce * 0.5f * Time.fixedDeltaTime, ForceMode.Acceleration);
+        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, Vector3.zero, Time.fixedDeltaTime * 2f);
+    }
 
-        Vector3 moveDir = (fwd * inVec.y + right * inVec.x).normalized;
-        float targetSpeed = (wantRun ? runSpeed : walkSpeed) * inVec.magnitude;
+    // ลดไถลด้านข้าง
+    localVel.x *= 0.9f;
+    rb.linearVelocity = transform.TransformDirection(localVel);
 
-        Vector3 horizontalVel = new Vector3(velocity.x, 0f, velocity.z);
-        Vector3 desiredVel = moveDir * targetSpeed;
-        horizontalVel = Vector3.MoveTowards(horizontalVel, desiredVel, acceleration * Time.deltaTime);
+    // จำกัดความเร็ว
+    if (rb.linearVelocity.magnitude > maxSpeed)
+        rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
 
-        if (moveDir.sqrMagnitude > 0.0001f)
-        {
-            Quaternion tgt = Quaternion.LookRotation(moveDir, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, tgt, rotationSpeed * Time.deltaTime);
-        }
+    // เลี้ยวช้าลง
+    if (Mathf.Abs(currentSpeed) > 0.1f)
+    {
+        float minSpeedForTurn = 5f;
+        float speedRatio = Mathf.Clamp01(currentSpeed / minSpeedForTurn);
+        float turnAmount = steerInput * turnSpeed * 0.3f * speedRatio * Time.fixedDeltaTime * Mathf.Sign(currentSpeed);
+        rb.MoveRotation(rb.rotation * Quaternion.Euler(0f, turnAmount, 0f));
+    }
 
-        if (controller.isGrounded && velocity.y < 0f) velocity.y = -2f;
-        if (controller.isGrounded && Input.GetKeyDown(KeyCode.Space))
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-
-        velocity.y += gravity * Time.deltaTime;
-        velocity.x = horizontalVel.x; velocity.z = horizontalVel.z;
-
-        controller.Move(velocity * Time.deltaTime);
+    // เบรก (Space)
+    if (Input.GetKey(KeyCode.Space))
+    {
+        rb.AddForce(-rb.linearVelocity.normalized * brakeForce * Time.fixedDeltaTime, ForceMode.Acceleration);
     }
 }
+
+
+
+}
+
+
