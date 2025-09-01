@@ -1,41 +1,56 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
-    [Header("Police Settings")]
-    public GameObject policePrefab;       // Prefab ของ Police
-    public Transform[] spawnPoints;       // จุด Spawn ที่ตั้งไว้ใน Inspector
+    public GameObject policePrefab;         // Prefab ของ Police
+    public Transform[] spawnPoints;         // จุดที่ spawn ได้
+    public Transform[] patrolPoints;        // จุด Patrol
+    public Transform target;                // Player หรือเป้าหมาย
 
-    [Header("Spawn Timing")]
-    public float spawnInterval = 30f;     // ทุกๆ 30 วิ Spawn เพิ่ม
-    private int initialPolice = 2;        // เริ่มเกม Spawn 2 ตัว
+    public int startPoliceCount = 2;        // เริ่มต้นสร้างกี่ตัว
+    public float spawnInterval = 30f;       // ทุกกี่วิ spawn เพิ่ม
+    private int currentPoliceCount;
 
-    public void Start()
+    void Start()
     {
         SpawnPolice();
 
-        StartCoroutine(SpawnPoliceByTime());
+        currentPoliceCount = startPoliceCount;
+
+        // เริ่ม Coroutine สำหรับ Spawn เพิ่มทุก 30 วิ
+        StartCoroutine(SpawnRoutine());
     }
 
-    public void SpawnPolice()
+    void SpawnPolice()
     {
-        if (policePrefab == null || spawnPoints.Length == 0)
-        {
-            Debug.Log("forgot prefab and spawn point naja jub jub");           
-        }
-
+        // สุ่มตำแหน่ง spawn
         Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        Instantiate(policePrefab, spawnPoint.position, spawnPoint.rotation);
+
+        
+        GameObject police = Instantiate(policePrefab, spawnPoint.position, spawnPoint.rotation);
+
+        
+        PoliceController pc = police.GetComponent<PoliceController>();
+        if (pc != null)
+        {
+            pc.patrolPoints = patrolPoints;
+            pc.target = target;
+        }
+        else
+        {
+            Debug.LogError("Prefab ไม่มี PoliceController ");
+        }
     }
 
-    public IEnumerator SpawnPoliceByTime()
+    IEnumerator SpawnRoutine()
     {
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
+          
             SpawnPolice();
+            currentPoliceCount++;
         }
     }
 }
