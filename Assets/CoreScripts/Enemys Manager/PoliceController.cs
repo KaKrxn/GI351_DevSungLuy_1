@@ -6,7 +6,7 @@ using UnityEngine.Events;
 public class PoliceController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform target;                 // ถ้าเว้นว่าง จะค้นหา GameObject ที่ Tag = "Player" อัตโนมัติ
+    public Transform target;                 
 
     [Header("Patrol")]
     public Transform[] patrolPoints;         // จุดเดินลาดตระเวน (วนลูป)
@@ -15,7 +15,7 @@ public class PoliceController : MonoBehaviour
     [Header("Tuning")]
     public float agentSpeed = 6f;            // ความเร็วไล่ล่า (อัปเดต runtime ได้)
     public float detectRadius = 15f;         // ระยะตรวจจับเริ่มไล่
-    public float loseSightRadius = 25f;      // ระยะที่ถือว่า "หลุดการติดตาม" + หมดเวลา LOS
+    public float loseSightRadius = 25f;      // ระยะที่ถือว่า "หลุดการติดตาม"
     public float captureRadius = 1.8f;       // ระยะที่ถือว่าจับผู้เล่นได้
 
     [Header("Line of Sight")]
@@ -24,13 +24,20 @@ public class PoliceController : MonoBehaviour
     public float losHeightOffset = 1.2f;     // ยกตำแหน่งตา (Ray origin) ให้พ้นพื้น
     public float lostGraceTime = 1.0f;       // อนุโลมไม่มี LOS ได้กี่วินาทีระหว่างไล่
 
+    [Header("Search Settings")]
+    public float searchDuration = 5f;        // ระยะเวลาหาเป้าหมาย
+
     [Header("Events")]
     public UnityEvent onPlayerCaptured;      // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
     NavMeshAgent agent;
     int patrolIndex = -1;
+
+    float searchTimer;
     Vector3 lastKnownTargetPos;
+
     float timeSinceHadLOS = 999f;
+    bool captured = false;
 
     enum State { Patrol, Chase, Search }
     State state = State.Patrol;
@@ -80,7 +87,7 @@ public class PoliceController : MonoBehaviour
 
             if (Physics.Linecast(eyeFrom, eyeTo, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore))
             {
-                hasLOS = hit.transform == target || hit.transform.IsChildOf(target);
+                hasLOS = hit.transform.CompareTag("Player") || hit.transform.root.CompareTag("Player");
             }
         }
 
@@ -109,28 +116,36 @@ public class PoliceController : MonoBehaviour
 
                 agent.destination = target.position;
 
-                if (dist <= captureRadius)
+                if (!captured && dist <= captureRadius)
                 {
+                    captured = true;
                     onPlayerCaptured?.Invoke();
                 }
 
-                if ((dist > loseSightRadius && timeSinceHadLOS >= lostGraceTime) ||
-                    (!agent.hasPath && agent.pathStatus != NavMeshPathStatus.PathComplete))
+                if (dist > loseSightRadius || timeSinceHadLOS >= lostGraceTime)
                 {
                     state = State.Search;
                     agent.destination = lastKnownTargetPos;
+                    searchTimer = 0f; // reset ตัวจับเวลา
                 }
                 break;
 
             case State.Search:
-                if (dist <= detectRadius && hasLOS)
+                if (!agent.pathPending && agent.remainingDistance < 0.5f)
                 {
-                    state = State.Chase;
-                }
-                else if (!agent.pathPending && agent.remainingDistance < 1f)
-                {
-                    state = State.Patrol;
-                    GoNextPatrol();
+                    searchTimer += Time.deltaTime;
+
+                    if (dist <= detectRadius && hasLOS)
+                    {
+                        state = State.Chase;
+                        timeSinceHadLOS = 0f;
+                        return;
+                    }
+
+                    if (searchTimer >= searchDuration)
+                    {
+                        ReturnToClosestPatrol();
+                    }
                 }
                 break;
         }
@@ -160,6 +175,40 @@ public class PoliceController : MonoBehaviour
             agent.destination = dst;
     }
 
+    int FindClosestPatrolIndex()
+    {
+        if (patrolPoints == null || patrolPoints.Length == 0) return -1;
+
+        float bestDist = Mathf.Infinity;
+        int bestIndex = 0;
+
+        for (int i = 0; i < patrolPoints.Length; i++)
+        {
+            float d = Vector3.Distance(transform.position, patrolPoints[i].position);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    void ReturnToClosestPatrol()
+    {
+        state = State.Patrol;
+        int closest = FindClosestPatrolIndex();
+        if (closest >= 0)
+        {
+            patrolIndex = closest;
+            agent.destination = patrolPoints[patrolIndex].position;
+        }
+        else
+        {
+            GoNextPatrol();
+        }
+    }
+
     // เรียกจากระบบความยาก/Director เพื่ออัปเดตค่า runtime
     public void ApplyDifficulty(float newSpeed, float newDetectRadius, float newLoseSightRadius)
     {
@@ -173,6 +222,6 @@ public class PoliceController : MonoBehaviour
         Gizmos.color = Color.yellow; Gizmos.DrawWireSphere(transform.position, detectRadius);
         Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(transform.position, loseSightRadius);
         Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, captureRadius);
-    }
+    }//212
 }
 
