@@ -3,43 +3,38 @@ using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
-    public GameObject policePrefab;         // Prefab ของ Police
-    public Transform[] spawnPoints;         // จุดที่ spawn ได้
-    public Transform[] patrolPoints;        // จุด Patrol
-    public Transform target;                // Player หรือเป้าหมาย
+    public GameObject policePrefab;     // Prefab ของตำรวจ
+    public Transform[] spawnPoints;     // จุดเกิดตำรวจ
+    public Transform[] patrolPoints;    // จุดเดินตรวจ
+    public Transform target;            // Player
 
-    public int startPoliceCount = 2;        // เริ่มต้นสร้างกี่ตัว
-    public float spawnInterval = 30f;       // ทุกกี่วิ spawn เพิ่ม
-    private int currentPoliceCount;
+    private int startPoliceCount = 2;   // จำนวนเริ่มต้น
+    public float spawnInterval = 30f;   // spawn ทุกๆ
 
     void Start()
     {
-        SpawnPolice();
+        for (int i = 0; i < startPoliceCount; i++)
+        {
+            SpawnPolice();
+        }
 
-        currentPoliceCount = startPoliceCount;
-
-        // เริ่ม Coroutine สำหรับ Spawn เพิ่มทุก 30 วิ
         StartCoroutine(SpawnRoutine());
     }
 
     void SpawnPolice()
     {
-        // สุ่มตำแหน่ง spawn
         Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-
-        
         GameObject police = Instantiate(policePrefab, spawnPoint.position, spawnPoint.rotation);
 
-        
         PoliceController pc = police.GetComponent<PoliceController>();
         if (pc != null)
         {
-            pc.patrolPoints = patrolPoints;
-            pc.target = target;
+            pc.SetPatrolPoints(patrolPoints);
+            pc.target = target;  
         }
         else
         {
-            Debug.LogError("Prefab ไม่มี PoliceController ");
+            Debug.Log("Prefab ไม่มี PoliceController");
         }
     }
 
@@ -48,9 +43,7 @@ public class SpawnManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
-          
             SpawnPolice();
-            currentPoliceCount++;
         }
     }
 }
