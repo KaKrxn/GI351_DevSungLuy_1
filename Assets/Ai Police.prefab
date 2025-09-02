@@ -12,10 +12,11 @@ GameObject:
   - component: {fileID: 8724413154288230730}
   - component: {fileID: 8289157733743947494}
   - component: {fileID: 2685785379376320990}
-  - component: {fileID: 5533783753692024644}
-  m_Layer: 7
+  - component: {fileID: 5995670618107865959}
+  - component: {fileID: 2899338805136747738}
+  m_Layer: 0
   m_Name: Ai Police
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -61,7 +62,7 @@ MonoBehaviour:
   losHeightOffset: 1.2
   lostGraceTime: 1
   searchDuration: 5
-  onPlayerCaptured:
+  onPlayerHit:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 6054904150881294033, guid: 663200996a4cd634c90ccd022940d025, type: 3}
@@ -120,8 +121,8 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 3.1452026, y: 2.4790916, z: 6.815773}
   m_Center: {x: -0.015678406, y: 1.2175128, z: -0.42494583}
---- !u!136 &5533783753692024644
-CapsuleCollider:
+--- !u!65 &5995670618107865959
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -138,11 +139,36 @@ CapsuleCollider:
   m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 3.873661
-  m_Height: 7.747322
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: -0.21604538}
+  serializedVersion: 3
+  m_Size: {x: 3.3512726, y: 0.94874907, z: 7.3833313}
+  m_Center: {x: -0.01259613, y: 0.45503497, z: -0.2497406}
+--- !u!54 &2899338805136747738
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 475974160751688342}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &3676122777543227489
 GameObject:
   m_ObjectHideFlags: 0
@@ -152,7 +178,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3676122777542730819}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Vehicle_Police Car_Enemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -190,7 +216,7 @@ GameObject:
   - component: {fileID: 3676122777542730817}
   - component: {fileID: 3676122777541960803}
   - component: {fileID: 3676122777540961955}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Car Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -276,7 +302,7 @@ GameObject:
   - component: {fileID: 3676122777542730825}
   - component: {fileID: 3676122777541960809}
   - component: {fileID: 3676122777540961961}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Wheel_RL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -362,7 +388,7 @@ GameObject:
   - component: {fileID: 3676122777542730827}
   - component: {fileID: 3676122777541960811}
   - component: {fileID: 3676122777540961963}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Wheel_RR
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -448,7 +474,7 @@ GameObject:
   - component: {fileID: 3676122777542730829}
   - component: {fileID: 3676122777541960813}
   - component: {fileID: 3676122777540961965}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Wheel_FL
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -534,7 +560,7 @@ GameObject:
   - component: {fileID: 3676122777542730831}
   - component: {fileID: 3676122777541960815}
   - component: {fileID: 3676122777540961967}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Wheel_FR
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-//[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {

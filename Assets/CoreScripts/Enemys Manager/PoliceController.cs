@@ -27,7 +27,7 @@ public class PoliceController : MonoBehaviour
     public float searchDuration = 5f;
 
     [Header("Events")]
-    public UnityEvent onPlayerCaptured;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
+    public UnityEvent onPlayerHit;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
     NavMeshAgent agent;
     [SerializeField] private Transform[] patrolPoints;               // จุดเดินลาดตระเวน (วนลูป)
@@ -226,13 +226,35 @@ public class PoliceController : MonoBehaviour
             onPlayerCaptured?.Invoke();
         }
     } */
-   
 
-    void OnTriggerEnter(Collider other) //Collider ของ Police ติ๊ก Is Trigger *ถ้าจะเทส
+
+    /* void OnTriggerEnter(Collider other) //Collider ของ Police ติ๊ก Is Trigger *ถ้าจะเทส
+     {
+         if (other.CompareTag("Player"))
+         {
+             onPlayerHit?.Invoke();
+         }
+     } */
+
+    // TEST
+    private float canHitAt;
+    private float spawnGrace = 0.2f;
+
+    void OnEnable()
     {
+        canHitAt = Time.time + spawnGrace;
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (Time.time < canHitAt) return; // กันเฟรมแรก
         if (other.CompareTag("Player"))
         {
-            onPlayerCaptured?.Invoke();
+            var hp = other.GetComponent<PlayerHealth>();
+            if (hp != null) hp.TakeDamage(1);
+            onPlayerHit?.Invoke();
         }
     }
+
+
 }
