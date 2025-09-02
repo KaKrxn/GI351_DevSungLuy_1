@@ -62,7 +62,20 @@ MonoBehaviour:
   searchDuration: 5
   onPlayerCaptured:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 6054904150881294033, guid: 663200996a4cd634c90ccd022940d025, type: 3}
+        m_TargetAssemblyTypeName: PlayerHealth, Assembly-CSharp
+        m_MethodName: TakeDamage
+        m_Mode: 3
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 1
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  patrolPoints: []
 --- !u!195 &8289157733743947494
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -216,6 +229,7 @@ MonoBehaviour:
   onPlayerCaptured:
     m_PersistentCalls:
       m_Calls: []
+  patrolPoints: []
 --- !u!1 &3676122777543227491
 GameObject:
   m_ObjectHideFlags: 0

@@ -30,7 +30,7 @@ public class PoliceController : MonoBehaviour
     public UnityEvent onPlayerCaptured;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
     NavMeshAgent agent;
-    Transform[] patrolPoints;               // จุดเดินลาดตระเวน (วนลูป)
+    [SerializeField] private Transform[] patrolPoints;               // จุดเดินลาดตระเวน (วนลูป)
     int patrolIndex = -1;
 
     float searchTimer = 0f;
@@ -57,10 +57,10 @@ public class PoliceController : MonoBehaviour
             var p = GameObject.FindGameObjectWithTag("Player");
             if (p) target = p.transform;
         }
-
-        
-
-        ReturnToClosestPatrol();
+        if (patrolPoints != null && patrolPoints.Length > 0)
+        {
+            ReturnToClosestPatrol();
+        }       
     }
 
     void Update()

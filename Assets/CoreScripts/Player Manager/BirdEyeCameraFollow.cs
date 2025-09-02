@@ -31,6 +31,11 @@ public class BirdEyeCameraFollow : MonoBehaviour
 
     void Start()
     {
+        if (target == null)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p) target = p.transform;
+        }
         yaw = yawOffset;
         currentPitch = pitch;
         Cursor.lockState = CursorLockMode.Locked;

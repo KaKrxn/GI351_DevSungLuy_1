@@ -25,12 +25,11 @@ public class SpawnManager : MonoBehaviour
     {
         Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
         GameObject police = Instantiate(policePrefab, spawnPoint.position, spawnPoint.rotation);
-
         PoliceController pc = police.GetComponent<PoliceController>();
         if (pc != null)
         {
             pc.SetPatrolPoints(patrolPoints);
-            pc.target = target;  
+            pc.target = target;
         }
         else
         {
