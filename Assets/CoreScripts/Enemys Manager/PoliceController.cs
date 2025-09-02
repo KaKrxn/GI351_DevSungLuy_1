@@ -27,7 +27,11 @@ public class PoliceController : MonoBehaviour
     public float searchDuration = 5f;
 
     [Header("Events")]
+<<<<<<< HEAD
     public UnityEvent onPlayerCaptured;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
+=======
+    public UnityEvent onPlayerHit;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
+>>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
 
     NavMeshAgent agent;
     [SerializeField] private Transform[] patrolPoints;               // จุดเดินลาดตระเวน (วนลูป)
@@ -37,7 +41,11 @@ public class PoliceController : MonoBehaviour
     Vector3 lastKnownTargetPos;
     float timeSinceHadLOS = 999f;
     //public bool lineTest = true;
+<<<<<<< HEAD
     bool captured = false;
+=======
+    //bool captured = false;
+>>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
 
     enum State { Patrol, Chase, Search }
     State state = State.Patrol;
@@ -218,11 +226,51 @@ public class PoliceController : MonoBehaviour
         Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(transform.position, loseSightRadius);
         Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, captureRadius);
     }
+<<<<<<< HEAD
     void OnCollisionEnter(Collision collision)
+=======
+
+    /*void OnCollisionEnter(Collision collision)
+>>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
     {
         if (collision.gameObject.CompareTag("Player"))
         {
             onPlayerCaptured?.Invoke();
         }
+<<<<<<< HEAD
     }
+=======
+    } */
+
+
+    /* void OnTriggerEnter(Collider other) //Collider ของ Police ติ๊ก Is Trigger *ถ้าจะเทส
+     {
+         if (other.CompareTag("Player"))
+         {
+             onPlayerHit?.Invoke();
+         }
+     } */
+
+    // TEST
+    private float canHitAt;
+    private float spawnGrace = 0.2f;
+
+    void OnEnable()
+    {
+        canHitAt = Time.time + spawnGrace;
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (Time.time < canHitAt) return; // กันเฟรมแรก
+        if (other.CompareTag("Player"))
+        {
+            var hp = other.GetComponent<PlayerHealth>();
+            if (hp != null) hp.TakeDamage(1);
+            onPlayerHit?.Invoke();
+        }
+    }
+
+
+>>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
 }
