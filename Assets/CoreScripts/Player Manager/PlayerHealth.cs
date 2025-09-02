@@ -5,7 +5,7 @@ using UnityEngine.Events;
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Player HP")]
-    public int maxHealth = 10;
+    public int maxHealth; //ghggg
 
     [SerializeField] private int currentHealth;
 
@@ -25,7 +25,7 @@ public class PlayerHealth : MonoBehaviour
         currentHealth = maxHealth;
         isInvincible = false;
         invTimer = 0f;
-        Debug.Log($"[PlayerHealth] Awake -> HP = {currentHealth}/{maxHealth}");
+        Debug.Log($"HP = {currentHealth}/{maxHealth}");
     }
 
     void Update()
