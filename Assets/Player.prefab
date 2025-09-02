@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8937434991744083213}
   - component: {fileID: 1338910323251032642}
   - component: {fileID: 7412945762265343545}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -124,7 +124,7 @@ GameObject:
   - component: {fileID: 6448695191117115200}
   - component: {fileID: 6938513170535442552}
   - component: {fileID: 6054904150881294033}
-  m_Layer: 10
+  m_Layer: 6
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -305,9 +305,43 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 3
+  currentHealth: 0
+  invincibleTime: 2
+  isInvincible: 0
+  invincibleTimer: 0
   onPlayerDamaged:
     m_PersistentCalls:
       m_Calls: []
   onPlayerDead:
     m_PersistentCalls:
       m_Calls: []
+  onInvincibilityStart:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 6054904150881294033}
+        m_TargetAssemblyTypeName: PlayerHealth, Assembly-CSharp
+        m_MethodName: TextStart
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  onInvincibilityEnd:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 6054904150881294033}
+        m_TargetAssemblyTypeName: PlayerHealth, Assembly-CSharp
+        m_MethodName: TextEnd
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2

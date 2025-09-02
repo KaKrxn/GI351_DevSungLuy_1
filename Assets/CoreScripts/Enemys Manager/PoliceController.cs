@@ -37,7 +37,7 @@ public class PoliceController : MonoBehaviour
     Vector3 lastKnownTargetPos;
     float timeSinceHadLOS = 999f;
     //public bool lineTest = true;
-    bool captured = false;
+    //bool captured = false;
 
     enum State { Patrol, Chase, Search }
     State state = State.Patrol;
@@ -218,9 +218,19 @@ public class PoliceController : MonoBehaviour
         Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(transform.position, loseSightRadius);
         Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, captureRadius);
     }
-    void OnCollisionEnter(Collision collision)
+
+    /*void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Player"))
+        {
+            onPlayerCaptured?.Invoke();
+        }
+    } */
+   
+
+    void OnTriggerEnter(Collider other) //Collider ของ Police ติ๊ก Is Trigger *ถ้าจะเทส
+    {
+        if (other.CompareTag("Player"))
         {
             onPlayerCaptured?.Invoke();
         }
