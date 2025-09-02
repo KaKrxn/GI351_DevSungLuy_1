@@ -6,31 +6,38 @@ using UnityEngine.Events;
 public class PoliceController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform target;                 // ถ้าเว้นว่าง จะค้นหา GameObject ที่ Tag = "Player" อัตโนมัติ
+    public Transform target;                 // ถ้าเว้นว่าง จะค้นหา GameObject ที่ Tag = "Player" อัตโนมัติ                               
 
     [Header("Patrol")]
-    public Transform[] patrolPoints;         // จุดเดินลาดตระเวน (วนลูป)
     public float patrolWaitTime = 1.0f;      // เวลาหยุดรอที่แต่ละจุด
 
     [Header("Tuning")]
-    public float agentSpeed = 6f;            // ความเร็วไล่ล่า (อัปเดต runtime ได้)
+    public float agentSpeed = 6f;            // ความเร็วไล่ล่า (อัปเดต runtime ได้)               
     public float detectRadius = 15f;         // ระยะตรวจจับเริ่มไล่
-    public float loseSightRadius = 25f;      // ระยะที่ถือว่า "หลุดการติดตาม" + หมดเวลา LOS
+    public float loseSightRadius = 25f;      // ระยะที่ถือว่า "หลุดการติดตาม"         
     public float captureRadius = 1.8f;       // ระยะที่ถือว่าจับผู้เล่นได้
 
     [Header("Line of Sight")]
     public bool useLineOfSight = true;       // เปิด/ปิดการมองเห็นจริงด้วย Raycast
-    public LayerMask losObstacles = ~0;      // เลเยอร์ที่ถือว่าเป็นสิ่งกีดขวางสายตา
+    public LayerMask losObstacles = ~0;      // เลเยอร์ที่ถือว่าเป็นสิ่งกีดขวางสายตา   
     public float losHeightOffset = 1.2f;     // ยกตำแหน่งตา (Ray origin) ให้พ้นพื้น
     public float lostGraceTime = 1.0f;       // อนุโลมไม่มี LOS ได้กี่วินาทีระหว่างไล่
 
+    [Header("Search Settings")]
+    public float searchDuration = 5f;
+
     [Header("Events")]
-    public UnityEvent onPlayerCaptured;      // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
+    public UnityEvent onPlayerCaptured;     // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
     NavMeshAgent agent;
+    [SerializeField] private Transform[] patrolPoints;               // จุดเดินลาดตระเวน (วนลูป)
     int patrolIndex = -1;
+
+    float searchTimer = 0f;
     Vector3 lastKnownTargetPos;
     float timeSinceHadLOS = 999f;
+    //public bool lineTest = true;
+    bool captured = false;
 
     enum State { Patrol, Chase, Search }
     State state = State.Patrol;
@@ -50,18 +57,18 @@ public class PoliceController : MonoBehaviour
             var p = GameObject.FindGameObjectWithTag("Player");
             if (p) target = p.transform;
         }
-
-        GoNextPatrol();
-    }
-
-    void OnDisable()
-    {
-        CancelInvoke();
+        if (patrolPoints != null && patrolPoints.Length > 0)
+        {
+            ReturnToClosestPatrol();
+        }       
     }
 
     void Update()
     {
         agent.speed = agentSpeed;
+
+        if (patrolPoints == null || patrolPoints.Length == 0)
+            return;
 
         if (target == null)
         {
@@ -80,7 +87,7 @@ public class PoliceController : MonoBehaviour
 
             if (Physics.Linecast(eyeFrom, eyeTo, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore))
             {
-                hasLOS = hit.transform == target || hit.transform.IsChildOf(target);
+                hasLOS = hit.transform.CompareTag("Player") || hit.transform.root.CompareTag("Player");
             }
         }
 
@@ -108,38 +115,43 @@ public class PoliceController : MonoBehaviour
                 }
 
                 agent.destination = target.position;
-
-                if (dist <= captureRadius)
+                /*
+                if (!captured && dist <= captureRadius)
                 {
+                    captured = true;
                     onPlayerCaptured?.Invoke();
                 }
-
-                if ((dist > loseSightRadius && timeSinceHadLOS >= lostGraceTime) ||
-                    (!agent.hasPath && agent.pathStatus != NavMeshPathStatus.PathComplete))
+                */ //เปลี่ยนก่อน
+                if (dist > loseSightRadius || timeSinceHadLOS >= lostGraceTime)
                 {
                     state = State.Search;
                     agent.destination = lastKnownTargetPos;
+                    searchTimer = 0f;
                 }
                 break;
 
             case State.Search:
-                if (dist <= detectRadius && hasLOS)
+                if (!agent.pathPending && agent.remainingDistance < 0.5f)
                 {
-                    state = State.Chase;
-                }
-                else if (!agent.pathPending && agent.remainingDistance < 1f)
-                {
-                    state = State.Patrol;
-                    GoNextPatrol();
+                    searchTimer += Time.deltaTime;
+
+                    if (dist <= detectRadius && hasLOS)
+                    {
+                        state = State.Chase;
+                        timeSinceHadLOS = 0f;
+                        return;
+                    }
+
+                    if (searchTimer >= searchDuration)
+                        ReturnToClosestPatrol();
                 }
                 break;
         }
+        
     }
 
     void PatrolTick()
     {
-        if (patrolPoints == null || patrolPoints.Length == 0) return;
-
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
             if (!IsInvoking(nameof(GoNextPatrol)))
@@ -152,20 +164,52 @@ public class PoliceController : MonoBehaviour
         if (patrolPoints == null || patrolPoints.Length == 0) return;
 
         patrolIndex = (patrolIndex + 1) % patrolPoints.Length;
-        Vector3 dst = patrolPoints[patrolIndex].position;
-
-        if (NavMesh.SamplePosition(dst, out NavMeshHit hit, 2f, NavMesh.AllAreas))
-            agent.destination = hit.position;
-        else
-            agent.destination = dst;
+        agent.destination = patrolPoints[patrolIndex].position;
     }
 
-    // เรียกจากระบบความยาก/Director เพื่ออัปเดตค่า runtime
-    public void ApplyDifficulty(float newSpeed, float newDetectRadius, float newLoseSightRadius)
+    int FindClosestPatrolIndex()
     {
-        agentSpeed = newSpeed;
-        detectRadius = newDetectRadius;
-        loseSightRadius = newLoseSightRadius;
+        if (patrolPoints == null || patrolPoints.Length == 0) return -1;
+
+        float bestDist = Mathf.Infinity;
+        int bestIndex = 0;
+
+        for (int i = 0; i < patrolPoints.Length; i++)
+        {
+            float d = Vector3.Distance(transform.position, patrolPoints[i].position);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    void ReturnToClosestPatrol()
+    {
+        state = State.Patrol;
+        int closest = FindClosestPatrolIndex();
+        if (closest >= 0)
+        {
+            patrolIndex = closest;
+            agent.destination = patrolPoints[patrolIndex].position;
+        }
+        else
+        {
+            GoNextPatrol();
+        }
+    }
+   
+    public void SetPatrolPoints(Transform[] points)
+    {
+        patrolPoints = points;
+
+        if (patrolPoints != null && patrolPoints.Length > 0)
+        {
+            patrolIndex = 0;
+            agent.destination = patrolPoints[patrolIndex].position;
+        }
     }
 
     void OnDrawGizmosSelected()
@@ -174,5 +218,11 @@ public class PoliceController : MonoBehaviour
         Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(transform.position, loseSightRadius);
         Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, captureRadius);
     }
+    void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            onPlayerCaptured?.Invoke();
+        }
+    }
 }
-
