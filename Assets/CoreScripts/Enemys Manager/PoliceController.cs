@@ -115,13 +115,13 @@ public class PoliceController : MonoBehaviour
                 }
 
                 agent.destination = target.position;
-
+                /*
                 if (!captured && dist <= captureRadius)
                 {
                     captured = true;
                     onPlayerCaptured?.Invoke();
                 }
-
+                */ //เปลี่ยนก่อน
                 if (dist > loseSightRadius || timeSinceHadLOS >= lostGraceTime)
                 {
                     state = State.Search;
@@ -217,5 +217,12 @@ public class PoliceController : MonoBehaviour
         Gizmos.color = Color.yellow; Gizmos.DrawWireSphere(transform.position, detectRadius);
         Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(transform.position, loseSightRadius);
         Gizmos.color = Color.red; Gizmos.DrawWireSphere(transform.position, captureRadius);
+    }
+    void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            onPlayerCaptured?.Invoke();
+        }
     }
 }
