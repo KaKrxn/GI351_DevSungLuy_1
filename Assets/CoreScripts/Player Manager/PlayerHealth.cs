@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-﻿using UnityEditor;
-using UnityEngine;
-using UnityEngine.Events;
-
-public class PlayerHealth : MonoBehaviour
-{
-    [Header("Player HP")]
-    public int maxHealth = 3;
-    private int currentHealth;
-=======
 ﻿using UnityEngine;
 using UnityEngine.Events;
 
@@ -24,17 +13,10 @@ public class PlayerHealth : MonoBehaviour
     public float invincibleTime = 2f;
     [SerializeField]private bool isInvincible = false;
     [SerializeField] private float invTimer = 0f;
->>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
 
     [Header("Events")]
     public UnityEvent onPlayerDamaged;
     public UnityEvent onPlayerDead;
-<<<<<<< HEAD
-
-    void Start()
-    {
-        currentHealth = maxHealth;
-=======
     public UnityEvent onInvincibilityStart;
     public UnityEvent onInvincibilityEnd;
 
@@ -57,35 +39,10 @@ public class PlayerHealth : MonoBehaviour
             onInvincibilityEnd?.Invoke(); 
             Debug.Log("[PlayerHealth] อมตะอยู่จ้า");
         }
->>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
     }
 
     public void TakeDamage(int damage)
     {
-<<<<<<< HEAD
-        currentHealth -= damage;
-        onPlayerDamaged?.Invoke();
-
-        Debug.Log("Player HP == " + currentHealth);
-
-        if (currentHealth <= 0)
-        {
-            currentHealth = 0;
-            onPlayerDead?.Invoke();
-            Debug.Log("Player is captured eiei");
-
-            #if UNITY_EDITOR
-            EditorApplication.isPlaying = false;  //ปิด Play Mode naka
-            #endif
-        }
-    }
-
-    public int GetHealth()
-    {
-        return currentHealth;
-    }
-}
-=======
         if (damage <= 0) return;             //กันไว้เฉยๆ
         if (currentHealth <= 0) return;      //ตายแล้วไม่รับดาเมจ
         if (isInvincible) return;            //อมตะอยู่ไม่รับดาเมจ
@@ -111,4 +68,3 @@ public class PlayerHealth : MonoBehaviour
     public bool IsInvincible() => isInvincible;
 }
 
->>>>>>> f48bf4d7cb7a8cb3fc3a1b90823067230df03d94
