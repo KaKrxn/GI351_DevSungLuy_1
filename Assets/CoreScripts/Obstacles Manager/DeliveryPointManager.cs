@@ -1,4 +1,4 @@
-// DeliveryPointManager.cs (robust)
+Ôªø// DeliveryPointManager.cs ‚Äî now auto-updates ArrowPointer target on every spawn
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
@@ -14,10 +14,15 @@ public class DeliveryPointManager : MonoBehaviour
     [Header("Settings")]
     public string playerTag = "Player";
     public bool avoidImmediateRepeat = true;
-    public float respawnDelay = 0.0f;   // ‡º◊ËÕÕ¬“°¥’‡≈¬Ï°ËÕπ ÿË¡„À¡Ë
+    public float respawnDelay = 0.0f;   
 
     [Header("Events")]
     public UnityEvent onDelivered;
+
+    [Header("UI Arrow (optional)")]
+    [Tooltip("‡∏•‡∏≤‡∏Å ArrowPointer ‡∏à‡∏≤‡∏Å HUD ‡∏°‡∏≤‡πÉ‡∏™‡πà ‡∏ñ‡πâ‡∏≤‡πÄ‡∏ß‡πâ‡∏ô‡∏ß‡πà‡∏≤‡∏á ‡∏£‡∏∞‡∏ö‡∏ö‡∏à‡∏∞‡πÑ‡∏°‡πà‡∏≠‡∏±‡∏õ‡πÄ‡∏î‡∏ï‡∏•‡∏π‡∏Å‡∏®‡∏£")]
+    public ArrowPointer arrow;                 
+    public bool hideArrowWhileRespawning = false;
 
     GameObject currentMarker;
     int lastIndex = -1;
@@ -42,17 +47,18 @@ public class DeliveryPointManager : MonoBehaviour
         }
         lastIndex = idx;
 
-        //  √È“ß„À¡Ë
+        
+        if (currentMarker) Destroy(currentMarker);
+
+        
         Vector3 pos = points[idx].position;
         Quaternion rot = points[idx].rotation;
-
-        if (currentMarker) Destroy(currentMarker);
 
         currentMarker = markerPrefab
             ? Instantiate(markerPrefab, pos, rot)
             : GameObject.CreatePrimitive(PrimitiveType.Cylinder);
 
-        if (!markerPrefab)  // µ°·µËß fallback
+        if (!markerPrefab)  
         {
             currentMarker.transform.SetPositionAndRotation(pos, rot);
             currentMarker.transform.localScale = new Vector3(2.5f, 0.2f, 2.5f);
@@ -60,27 +66,34 @@ public class DeliveryPointManager : MonoBehaviour
             if (r) r.material.color = new Color(1f, 0.9f, 0.2f, 0.9f);
         }
 
-        // „ÀÈ¡’ Collider ·∫∫ Trigger
+        
         var col = currentMarker.GetComponent<Collider>();
         if (!col) col = currentMarker.AddComponent<BoxCollider>();
         col.isTrigger = true;
 
-        // „ Ë Rigidbody §‘‡π‡¡µ‘°‡æ◊ËÕ„ÀÈ OnTrigger ∑”ß“π·πË°—∫ CharacterController
+        
         var rb = currentMarker.GetComponent<Rigidbody>();
         if (!rb) rb = currentMarker.AddComponent<Rigidbody>();
         rb.isKinematic = true;
         rb.useGravity = false;
 
-        // µ‘¥ Trigger handler
+        
         var trig = currentMarker.GetComponent<DeliveryTrigger>();
         if (!trig) trig = currentMarker.AddComponent<DeliveryTrigger>();
         trig.Init(this, playerTag);
+
+        
+        if (arrow) arrow.SetTarget(currentMarker.transform);
     }
 
     public void HandleDelivered()
     {
         deliveredCount++;
         onDelivered?.Invoke();
+
+        
+        if (hideArrowWhileRespawning && arrow) arrow.ClearTarget();
+
         StartCoroutine(RespawnNext());
     }
 
@@ -88,10 +101,15 @@ public class DeliveryPointManager : MonoBehaviour
     {
         if (currentMarker) Destroy(currentMarker);
         currentMarker = null;
-        // √Õ„ÀÈ∑”≈“¬‡ √Á®ª≈“¬‡ø√¡ (°—π™π·≈È« Destroy ∑—∫°—∫°“√ √È“ß„À¡Ë)
+
+        
         if (respawnDelay <= 0f) yield return null; else yield return new WaitForSeconds(respawnDelay);
-        SpawnNext();
+
+        SpawnNext();  
     }
+
+    
+    public Transform CurrentMarkerTransform => currentMarker ? currentMarker.transform : null;
 }
 
 public class DeliveryTrigger : MonoBehaviour
@@ -110,7 +128,7 @@ public class DeliveryTrigger : MonoBehaviour
         if (other.CompareTag(playerTag))
         {
             manager?.HandleDelivered();
-            // ‰¡Ë∑”≈“¬∑’Ëπ’Ë ª≈ËÕ¬„ÀÈ Manager ®—¥°“√
+            
         }
     }
 }

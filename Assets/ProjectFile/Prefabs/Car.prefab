@@ -15,7 +15,6 @@ GameObject:
   - component: {fileID: 3759340878682613297}
   - component: {fileID: 766884513392682190}
   - component: {fileID: 3936441836814446325}
-  - component: {fileID: 4354565704355657656}
   - component: {fileID: 8777398421508633750}
   - component: {fileID: 6777096946440856522}
   m_Layer: 0
@@ -158,6 +157,7 @@ MonoBehaviour:
   rbDrag: 0.2
   rbAngularDrag: 4
   centerOfMass: {fileID: 0}
+  forceZeroTiltEveryFrame: 1
   driftBlend: 1
 --- !u!114 &766884513392682190
 MonoBehaviour:
@@ -209,82 +209,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2.9580617, y: 1.6356038, z: 6.3205423}
   m_Center: {x: -0.0029785633, y: 1.3738024, z: -0.1941576}
---- !u!114 &4354565704355657656
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2578277719028518015}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: be5b710a664971b48a478ceb2ce5fe27, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  maxAccelerationForce: 12000
-  throttleResponse: 0.25
-  reverseAccelerationForce: 6500
-  reverseTopSpeedKmh: 60
-  autoReverseSpeedMps: 1
-  reverseEngageHold: 0.2
-  invertSteerWhenReversing: 1
-  brakeForce: 9000
-  maxSteerAngle: 35
-  minSteerAngle: 15
-  steerTorque: 4200
-  noSteerUnderSpeed: 0.2
-  speedSteerDampen:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 0.35
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  lateralGrip: 0.14
-  sideSlipSaturation: 8
-  stabilityAlign: 0.2
-  yawDamping: 2
-  dragCoefficient: 0.015
-  limitTopSpeed: 1
-  topSpeedKmh: 200
-  centerOfMassOffset: {x: 0, y: -0.4, z: 0}
-  rushIntensity: 1.3
-  limiterCurveExp: 0.7
-  rushLowSpeedDragMul: 0.85
-  rushDragBlendStartKmh: 70
-  rushDragBlendEndKmh: 140
-  launchBoostMultiplier: 1.6
-  launchCutoffKmh: 45
-  launchEndKmh: 70
-  burstKey: 304
-  burstAccelMul: 1.8
-  burstTopSpeedKmh: 330
-  burstCooldown: 2
-  burstDuration: 1.2
-  dynamicFOV: 1
-  targetCamera: {fileID: 0}
-  baseFOV: 60
-  maxFOV: 85
-  fovAtKmh: 220
-  debugLog: 1
-  speedLogInterval: 0
 --- !u!114 &8777398421508633750
 MonoBehaviour:
   m_ObjectHideFlags: 0

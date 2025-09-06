@@ -151,8 +151,11 @@ public class CinematicCarCamera : MonoBehaviour
         Gizmos.color = new Color(0f, 0.6f, 1f, 0.6f);
         Gizmos.DrawWireSphere(t.position + Vector3.up * 0.5f, 0.25f);
     }
+   
 #endif
 }
+
+
 
 
 //// BirdEyeCameraFollow.cs — toggle V, Top-down doesn't follow player yaw
