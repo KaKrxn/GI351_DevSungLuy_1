@@ -1,6 +1,5 @@
-﻿// PlayerController.cs — Top-down car controller (NFS-style drift + Hard Tilt Lock)
-// W/A/S/D ขับ, Space = TAP เพื่อ Drift, HOLD เพื่อ Brake (ตัดคันเร่ง)
-// เพิ่ม: forceZeroTiltEveryFrame → บังคับ Rotation แกน X,Z = 0 ทุกเฟรมฟิสิกส์
+﻿// PlayerController.cs — Top-down car controller (NFS-style drift + Hard Tilt Lock + KM/H inspector)
+// เพิ่ม: ตั้งค่า Top Speed เป็น "km/h" ใน Inspector ได้ โดยแปลงเป็น m/s อัตโนมัติ
 // Unity 6000.x compatible
 
 using UnityEngine;
@@ -8,28 +7,42 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Top Speed (m/s)")]
+    // -------- NEW: KM/H controls in Inspector --------
+    [Header("Top Speed (Inspector – km/h)")]
+    [Tooltip("ตั้ง Top speed เป็น km/h ได้ตรงนี้ (โค้ดจะคำนวนเป็น m/s ให้เอง)")]
+    public bool editTopSpeedInKmh = true;
+    [Tooltip("ท็อปสปีดเดินหน้า (km/h)")]
+    public float forwardTopKmh = 72f;      // ~20 m/s
+    [Tooltip("ท็อปสปีดถอยหลัง (km/h)")]
+    public float reverseTopKmh = 36f;      // ~10 m/s
+
+    const float KMH_TO_MS = 1f / 3.6f;
+    const float MS_TO_KMH = 3.6f;
+
+    [Header("Top Speed (runtime m/s) — คำนวณอัตโนมัติ")]
+    [Tooltip("ค่านี้ระบบใช้จริง (m/s). ถ้า editTopSpeedInKmh=true ค่าจะถูกเซ็ตจาก km/h อัตโนมัติ")]
     public float maxForwardSpeed = 20f;
+    [Tooltip("ค่านี้ระบบใช้จริง (m/s). ถ้า editTopSpeedInKmh=true ค่าจะถูกเซ็ตจาก km/h อัตโนมัติ")]
     public float maxReverseSpeed = 10f;
 
     [Header("Rates (m/s²)")]
-    public float acceleration = 12f; // throttle
+    public float acceleration = 12f;       // throttle
     public float engineDeceleration = 5f;  // coast (release)
-    public float brakeDeceleration = 25f; // Space (hold)
+    public float brakeDeceleration = 25f;  // Space (hold)
 
     [Header("Steering (deg/sec) — Low speed -> High speed")]
-    public float steerLowSpeedDeg = 120f; // slow
+    public float steerLowSpeedDeg = 120f;  // slow
     public float steerHighSpeedDeg = 50f;  // fast
     public float steerLockAtSpeed = 0.25f; // below this (m/s) → no steering
 
     [Header("Handling / Stability")]
-    public float lateralGrip = 10f;   // higher = less sideslip
-    public float stopThreshold = 0.15f; // snap to 0 near stop (anti-jitter)
-    public float inputDeadzone = 0.12f; // ignore tiny input noise
+    public float lateralGrip = 10f;        // higher = less sideslip
+    public float stopThreshold = 0.15f;    // snap to 0 near stop (anti-jitter)
+    public float inputDeadzone = 0.12f;    // ignore tiny input noise
 
     [Header("Steer Filtering")]
-    public float steerSlewRate = 4f;  // max change of steer input / sec
-    public float steerSmooth = 8f;  // extra smoothing (exp)
+    public float steerSlewRate = 4f;       // max change of steer input / sec
+    public float steerSmooth = 8f;         // extra smoothing (exp)
     float steerInputFiltered;
 
     [Header("NFS-style Drift (Space TAP)")]
@@ -43,14 +56,14 @@ public class PlayerController : MonoBehaviour
     public float driftTapDuration = 0.60f;     // Space tap → drift window
 
     [Header("Physics (Top-down)")]
-    public bool topDownMode = true;   // run on XZ plane
-    public bool freezeTilt = true;   // lock rot X/Z via constraints
+    public bool topDownMode = true;        // run on XZ plane
+    public bool freezeTilt = true;         // lock rot X/Z via constraints
     public float rbDrag = 0.2f;
     public float rbAngularDrag = 6f;
     public Transform centerOfMass;
 
     [Header("Hard Lock")]
-    public bool forceZeroTiltEveryFrame = true; // ✅ บังคับ X,Z rotation = 0 ทุกเฟรมฟิสิกส์
+    public bool forceZeroTiltEveryFrame = true; // บังคับ X,Z rotation = 0 ทุกเฟรมฟิสิกส์
 
     // ---- runtime ----
     Rigidbody rb;
@@ -67,14 +80,27 @@ public class PlayerController : MonoBehaviour
     [Range(0f, 1f)] public float driftBlend = 1f; // 1=normal grip, 0=full drift
     public bool isDrifting { get; private set; }
 
+    // -------- NEW: utility for UI/telemetry --------
+    /// <summary>ความเร็วปัจจุบัน (km/h) ตามทิศการเคลื่อนที่จริง (บนระนาบ)</summary>
+    public float CurrentSpeedKmh
+    {
+        get
+        {
+            if (!rb) return 0f;
+            var v = rb.linearVelocity; // Unity 6
+            var flat = new Vector3(v.x, 0f, v.z);
+            return flat.magnitude * MS_TO_KMH;
+        }
+    }
+
     static float Dead(float v, float dz) => Mathf.Abs(v) < dz ? 0f : v;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = !topDownMode ? true : false;
-        rb.linearDamping = rbDrag;
-        rb.angularDamping = rbAngularDrag;
+        rb.linearDamping = rbDrag;          // Unity 6
+        rb.angularDamping = rbAngularDrag;  // Unity 6
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
 
@@ -87,6 +113,9 @@ public class PlayerController : MonoBehaviour
         rb.constraints = cons;
 
         planeY = transform.position.y;
+
+        // 🔁 ซิงก์ km/h -> m/s ให้แน่ใจทุกครั้งที่เริ่มเกม
+        SyncTopSpeedUnits(pushKmhToRuntime: true);
     }
 
     void Update()
@@ -122,7 +151,7 @@ public class PlayerController : MonoBehaviour
             rb.angularVelocity = new Vector3(0f, rb.angularVelocity.y, 0f);
 
         Vector3 fwd = transform.forward;
-        Vector3 vel = rb.linearVelocity;
+        Vector3 vel = rb.linearVelocity;                  // Unity 6
         Vector3 flatVel = new Vector3(vel.x, 0f, vel.z);
 
         float forwardSpeed = Vector3.Dot(flatVel, fwd);
@@ -166,8 +195,6 @@ public class PlayerController : MonoBehaviour
         Vector3 newFlat = fwd * newForward + lateral;
         rb.linearVelocity = new Vector3(newFlat.x, topDownMode ? 0f : rb.linearVelocity.y, newFlat.z);
 
-        // (Top-down) ไม่ต้องเซ็ตตำแหน่ง Y ด้วยมือ — ใช้ FreezePositionY ลดจิตเตอร์
-
         // ---- Steering ----
         bool canSteer = speedAbs >= steerLockAtSpeed;
         float speed01 = Mathf.InverseLerp(0f, maxForwardSpeed, speedAbs);
@@ -189,7 +216,6 @@ public class PlayerController : MonoBehaviour
         // --- HARD LOCK TILT (X/Z) — บังคับ Rotation.x/z = 0 ทุกเฟรม ---
         if (forceZeroTiltEveryFrame)
         {
-            // บังคับให้เหลือ yaw อย่างเดียว
             var e = rb.rotation.eulerAngles;
             if (Mathf.Abs(e.x) > 0.0001f || Mathf.Abs(e.z) > 0.0001f)
                 rb.MoveRotation(Quaternion.Euler(0f, e.y, 0f));
@@ -198,6 +224,10 @@ public class PlayerController : MonoBehaviour
 
     void OnValidate()
     {
+        // ซิงก์ km/h -> m/s (หรือมองค่า m/s -> อัปเดตโชว์ใน km/h) ขณะแก้ Inspector
+        SyncTopSpeedUnits(pushKmhToRuntime: editTopSpeedInKmh);
+
+        // clamps เดิม
         maxForwardSpeed = Mathf.Max(0.1f, maxForwardSpeed);
         maxReverseSpeed = Mathf.Clamp(maxReverseSpeed, 0.1f, maxForwardSpeed);
         acceleration = Mathf.Max(0f, acceleration);
@@ -225,5 +255,22 @@ public class PlayerController : MonoBehaviour
 
         rbDrag = Mathf.Max(0f, rbDrag);
         rbAngularDrag = Mathf.Max(0f, rbAngularDrag);
+    }
+
+    // -------- helpers --------
+    void SyncTopSpeedUnits(bool pushKmhToRuntime)
+    {
+        if (pushKmhToRuntime)
+        {
+            // ผู้ใช้แก้ค่าใน km/h → แปลงเป็น m/s ให้ฟิสิกส์ใช้
+            maxForwardSpeed = Mathf.Max(0f, forwardTopKmh * KMH_TO_MS);
+            maxReverseSpeed = Mathf.Clamp(reverseTopKmh * KMH_TO_MS, 0f, maxForwardSpeed);
+        }
+        else
+        {
+            // ผู้ใช้แก้ค่า m/s → อัปเดตค่าโชว์ใน km/h ให้ตรงกัน
+            forwardTopKmh = Mathf.Max(0f, maxForwardSpeed * MS_TO_KMH);
+            reverseTopKmh = Mathf.Max(0f, maxReverseSpeed * MS_TO_KMH);
+        }
     }
 }
