@@ -41,6 +41,14 @@ public class PoliceController : MonoBehaviour
     [Header("Events")]
     public UnityEvent onPlayerHit;                        // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
+    [Header("Editor Debug (Edit Mode)")]
+    public bool showPathsInEditMode = true;           // เปิด/ปิดการโชว์เส้นทางในโหมด Edit
+    public bool showNavMeshPreviewPath = true;        // พรีวิวเส้นทาง NavMesh ไปยัง target (ถ้ามี)
+    public float gizmoLineThickness = 3f;             // ความหนาเส้น (Handles)
+    public Color patrolPathColor = new Color(1f, 1f, 0f, 0.9f);   // สีเส้น Patrol
+    public Color lanePathColor = new Color(0f, 1f, 1f, 0.9f);   // สีเส้น Lane
+
+
     // ==== Rush / Heat Scaling (ปรับค่าตัวแปรเดิมตาม Heat 1–5) ====
     [Header("Rush Scaling (Heat 1–5)")]
     [Tooltip("เปิดคำนวณ Heat อัตโนมัติจากเวลาเล่น (0/60/120/180/240s) หรือปิดเพื่อรับจากภายนอกผ่าน ApplyHeat()")]
@@ -438,64 +446,80 @@ public class PoliceController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    void OnDrawGizmosSelected()
+    void OnDrawGizmos()
     {
-        if (!debugDrawGizmos) return;
+        if (!showPathsInEditMode) return;
 
-        Vector3 origin = transform.position + Vector3.up * losHeightOffset;
+        // วาดเส้นทาง Patrol (ถ้ามี)
+        if (patrolPoints != null && patrolPoints.Length > 1)
+            DrawPolyline(patrolPoints, true, patrolPathColor, false);
 
-        // Detect / LoseSight
-        Gizmos.color = new Color(0f, 1f, 1f, 0.35f);
-        Gizmos.DrawWireSphere(origin, detectRadius);
-        Gizmos.color = new Color(1f, 0.5f, 0f, 0.25f);
-        Gizmos.DrawWireSphere(origin, loseSightRadius);
+        // วาดเส้นทาง Lane (ถ้ามี) + ลูกศรทิศทาง
+        if (lanePathPoints != null && lanePathPoints.Length > 1)
+            DrawPolyline(lanePathPoints, laneLoop, lanePathColor, true);
 
-        // Patrol points
-        if (patrolPoints != null && patrolPoints.Length > 0)
+        // พรีวิวเส้นทาง NavMesh จากตำแหน่งตำรวจไปยัง target (ถ้าอยากเห็น)
+        if (showNavMeshPreviewPath && target != null)
+            DrawNavMeshPreviewPath();
+    }
+
+    void DrawPolyline(Transform[] pts, bool loop, Color c, bool arrows)
+    {
+        var list = new System.Collections.Generic.List<Vector3>();
+        for (int i = 0; i < pts.Length; i++)
         {
-            Gizmos.color = Color.yellow;
-            for (int i = 0; i < patrolPoints.Length; i++)
-            {
-                if (!patrolPoints[i]) continue;
-                Vector3 p = patrolPoints[i].position + Vector3.up * 0.25f;
-                Gizmos.DrawSphere(p, 0.25f);
-                Transform next = patrolPoints[(i + 1) % patrolPoints.Length];
-                if (next) Gizmos.DrawLine(p, next.position + Vector3.up * 0.25f);
-            }
+            if (pts[i]) list.Add(pts[i].position + Vector3.up * 0.05f);
         }
+        if (list.Count < 2) return;
 
-        // Lane path points
-        if (lanePathPoints != null && lanePathPoints.Length > 0)
+        UnityEditor.Handles.color = c;
+        UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, list.ToArray());
+        if (loop)
+            UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, new Vector3[] { list[list.Count - 1], list[0] });
+
+        if (arrows)
         {
-            Gizmos.color = offLaneOverride ? new Color(1f, 0.2f, 0.2f, 0.9f) : Color.cyan; // แดงถ้ากำลังตัดเลนอยู่
-            for (int i = 0; i < lanePathPoints.Length; i++)
-            {
-                if (!lanePathPoints[i]) continue;
-                Vector3 p = lanePathPoints[i].position + Vector3.up * 0.15f;
-                Gizmos.DrawCube(p, Vector3.one * 0.25f);
-                int ni = NextLaneIndex(i, +1);
-                if (ni >= 0 && lanePathPoints[ni])
-                    Gizmos.DrawLine(p, lanePathPoints[ni].position + Vector3.up * 0.15f);
-            }
+            for (int i = 0; i < list.Count - 1; i++)
+                DrawArrow(list[i], list[i + 1], c);
+            if (loop) DrawArrow(list[list.Count - 1], list[0], c);
         }
+    }
 
-        // LOS line
-        if (useLineOfSight && target != null)
+    void DrawArrow(Vector3 a, Vector3 b, Color c)
+    {
+        Vector3 dir = (b - a);
+        float len = dir.magnitude;
+        if (len < 0.01f) return;
+        dir /= len;
+
+        // จุดวางหัวลูกศร (ปลาย 85% ของ segment)
+        Vector3 p = Vector3.Lerp(a, b, 0.85f);
+        float headLen = Mathf.Clamp(len * 0.15f, 0.6f, 2.0f);
+
+        // ปีกซ้าย/ขวา (หมุนรอบแกน Y)
+        Vector3 left = Quaternion.AngleAxis(25f, Vector3.up) * (-dir);
+        Vector3 right = Quaternion.AngleAxis(-25f, Vector3.up) * (-dir);
+
+        UnityEditor.Handles.color = c;
+        UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, p, p + left * headLen);
+        UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, p, p + right * headLen);
+    }
+
+    void DrawNavMeshPreviewPath()
+    {
+        int mask = (agent != null) ? agent.areaMask : NavMesh.AllAreas;
+
+        // ดูดตำแหน่งให้ลงบน NavMesh สักนิด เผื่อวางลอยนิด ๆ ในฉาก
+        Vector3 from = transform.position;
+        Vector3 to = target.position;
+        if (NavMesh.SamplePosition(from, out var hf, 2f, mask)) from = hf.position;
+        if (NavMesh.SamplePosition(to, out var ht, 2f, mask)) to = ht.position;
+
+        var path = new NavMeshPath();
+        if (NavMesh.CalculatePath(from, to, mask, path) && path.corners != null && path.corners.Length > 1)
         {
-            Vector3 tgt = target.position + Vector3.up * losHeightOffset;
-            bool blocked = Physics.Linecast(origin, tgt, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore)
-                           && !(hit.transform.CompareTag(playerTag) || hit.transform.root.CompareTag(playerTag));
-
-            Gizmos.color = blocked ? Color.red : Color.green;
-            Gizmos.DrawLine(origin, tgt);
-        }
-
-        // Destination (runtime)
-        if (Application.isPlaying && agent != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawLine(transform.position, agent.destination);
-            Gizmos.DrawSphere(agent.destination, 0.2f);
+            UnityEditor.Handles.color = new Color(0.2f, 1f, 0.2f, 0.9f); // เขียวอ่อน
+            UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, path.corners);
         }
     }
 #endif
