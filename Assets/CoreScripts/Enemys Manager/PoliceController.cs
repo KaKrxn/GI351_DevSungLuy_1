@@ -41,14 +41,6 @@ public class PoliceController : MonoBehaviour
     [Header("Events")]
     public UnityEvent onPlayerHit;                        // ผูกฟังก์ชันสิ้นสุดเกม/ลดชีวิต ฯลฯ
 
-    [Header("Editor Debug (Edit Mode)")]
-    public bool showPathsInEditMode = true;           // เปิด/ปิดการโชว์เส้นทางในโหมด Edit
-    public bool showNavMeshPreviewPath = true;        // พรีวิวเส้นทาง NavMesh ไปยัง target (ถ้ามี)
-    public float gizmoLineThickness = 3f;             // ความหนาเส้น (Handles)
-    public Color patrolPathColor = new Color(1f, 1f, 0f, 0.9f);   // สีเส้น Patrol
-    public Color lanePathColor = new Color(0f, 1f, 1f, 0.9f);   // สีเส้น Lane
-
-
     // ==== Rush / Heat Scaling (ปรับค่าตัวแปรเดิมตาม Heat 1–5) ====
     [Header("Rush Scaling (Heat 1–5)")]
     [Tooltip("เปิดคำนวณ Heat อัตโนมัติจากเวลาเล่น (0/60/120/180/240s) หรือปิดเพื่อรับจากภายนอกผ่าน ApplyHeat()")]
@@ -79,8 +71,20 @@ public class PoliceController : MonoBehaviour
     float lastChaseProgressDist = float.MaxValue;
     float lastChaseProgressTime = -999f;
 
-    [Header("Debug Gizmos")]
-    public bool debugDrawGizmos = true;        // เปิด/ปิดการวาด Gizmos ใน Scene
+    [Header("Lane Chase – Direction & Avoidance")]
+    public bool laneChaseUseIndexDistance = true;     // เลือกทิศทางด้วยจำนวนก้าวบนเลน
+    [Range(1, 4)] public int laneChaseMaxStepPerTick = 2; // ก้าวทีละกี่จุดต่อเฟรม
+    public float avoidDisableDist = 5f;               // ระยะที่ปิด ObstacleAvoidance เพื่อกันวนใกล้ตัว
+
+    [Header("Debug Gizmos (Play Mode)")]
+    public bool debugDrawGizmos = true;        // เปิด/ปิดการวาด Gizmos ใน Scene (ตอนเล่น)
+
+    [Header("Editor Debug (Edit Mode)")]
+    public bool showPathsInEditMode = true;           // โชว์เส้นทางในโหมด Edit
+    public bool showNavMeshPreviewPath = true;        // พรีวิวเส้นทาง NavMesh ไปยัง target
+    public float gizmoLineThickness = 3f;             // ความหนาเส้น (Handles)
+    public Color patrolPathColor = new Color(1f, 1f, 0f, 0.9f);
+    public Color lanePathColor = new Color(0f, 1f, 1f, 0.9f);
 
     // ===== Internals =====
     NavMeshAgent agent;
@@ -310,9 +314,17 @@ public class PoliceController : MonoBehaviour
         }
     }
 
-    // ------------------------------ Chase ------------------------------
+    // ------------------------------ Chase (แก้ทิศทาง/วน) ------------------------------
     void ChaseTick(float currentDistToPlayer)
     {
+        // ลดการวน/ถอยหนีเมื่อใกล้ตัว: ปิด ObstacleAvoidance ชั่วคราว
+        if (agent != null)
+        {
+            agent.obstacleAvoidanceType = (currentDistToPlayer <= avoidDisableDist)
+                ? ObstacleAvoidanceType.NoObstacleAvoidance
+                : ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+        }
+
         bool canUseLane = useLaneForChase && lanePathPoints != null && lanePathPoints.Length > 0 && !offLaneOverride;
 
         if (canUseLane)
@@ -321,20 +333,44 @@ public class PoliceController : MonoBehaviour
 
             int playerIdx = GetClosestLaneIndex(target.position);
 
-            // ขยับ laneIndex ไปทาง playerIdx ทีละขั้น (และรองรับ loop)
-            if (playerIdx >= 0 && playerIdx != laneIndex)
+            if (playerIdx >= 0 && laneIndex != playerIdx)
             {
-                int forward = NextLaneIndex(laneIndex, +1);
-                int backward = NextLaneIndex(laneIndex, -1);
-
-                float df = (lanePathPoints[forward].position - lanePathPoints[playerIdx].position).sqrMagnitude;
-                float db = (lanePathPoints[backward].position - lanePathPoints[playerIdx].position).sqrMagnitude;
-
-                laneIndex = (df < db) ? forward : backward;
+                if (laneChaseUseIndexDistance)
+                {
+                    int len = lanePathPoints.Length;
+                    int dir = DirectionTowardsIndex(laneIndex, playerIdx, len, laneLoop); // +1/-1 ทิศทางสั้นสุด
+                    int steps = Mathf.Clamp(ShortestStepDistance(laneIndex, playerIdx, len, laneLoop), 1, laneChaseMaxStepPerTick);
+                    laneIndex = NextLaneIndex(laneIndex, dir * steps);
+                }
+                else
+                {
+                    // โหมดเดิม (ไม่แนะนำ): เทียบระยะยูคลิเดียนจาก forward/backward ไปยัง playerIdx
+                    int forward = NextLaneIndex(laneIndex, +1);
+                    int backward = NextLaneIndex(laneIndex, -1);
+                    float df = (lanePathPoints[forward].position - lanePathPoints[playerIdx].position).sqrMagnitude;
+                    float db = (lanePathPoints[backward].position - lanePathPoints[playerIdx].position).sqrMagnitude;
+                    laneIndex = (df < db) ? forward : backward;
+                }
             }
 
+            // ตั้งปลายทางเป็นจุดเลนปัจจุบัน
             if (laneIndex >= 0 && lanePathPoints[laneIndex] != null)
-                agent.destination = lanePathPoints[laneIndex].position;
+            {
+                Vector3 nextLanePos = lanePathPoints[laneIndex].position;
+                agent.destination = nextLanePos;
+
+                // ถ้าไปจุดเลนนี้แล้วไกลผู้เล่นกว่าเดิมอย่างเห็นได้ชัด → ตัดเลนชั่วคราวพุ่งเข้าหา
+                float distNextToPlayer = Vector3.Distance(nextLanePos, target.position);
+                if (allowTemporaryOffLane && distNextToPlayer > currentDistToPlayer * 1.05f)
+                {
+                    offLaneOverride = true;
+                    agent.destination = target.position;
+                }
+            }
+            else
+            {
+                agent.destination = target.position; // safety
+            }
         }
         else
         {
@@ -384,6 +420,40 @@ public class PoliceController : MonoBehaviour
             n = Mathf.Clamp(n, 0, lanePathPoints.Length - 1);
         }
         return n;
+    }
+
+    // จำนวนก้าวสั้นสุดจาก from → to (รองรับทั้ง loop และเส้นตรง)
+    int ShortestStepDistance(int from, int to, int len, bool looped)
+    {
+        if (len <= 0) return 0;
+        if (!looped) return Mathf.Abs(to - from);
+        int fwd = (to - from + len) % len;   // เดินหน้าไปกี่ก้าวถึง to
+        int bwd = (from - to + len) % len;   // ถอยหลังไปกี่ก้าวถึง to
+        return Mathf.Min(fwd, bwd);
+    }
+
+    // คืนทิศทางที่สั้นสุด: +1 = เดินหน้า, -1 = ถอยหลัง (รองรับ loop/ไม่ loop)
+    int DirectionTowardsIndex(int from, int to, int len, bool looped)
+    {
+        if (len <= 0 || from == to) return +1;
+
+        if (!looped)
+        {
+            return (to > from) ? +1 : -1;
+        }
+
+        int fwd = (to - from + len) % len;
+        int bwd = (from - to + len) % len;
+
+        if (fwd < bwd) return +1;
+        if (bwd < fwd) return -1;
+
+        // กรณีเท่ากัน: เลือกทิศที่ "จุดถัดไป" ใกล้ผู้เล่นกว่า
+        int nextF = NextLaneIndex(from, +1);
+        int nextB = NextLaneIndex(from, -1);
+        float dF = (lanePathPoints[nextF].position - lanePathPoints[to].position).sqrMagnitude;
+        float dB = (lanePathPoints[nextB].position - lanePathPoints[to].position).sqrMagnitude;
+        return (dF <= dB) ? +1 : -1;
     }
 
     // ----------------------- External Hooks -----------------------
@@ -446,6 +516,7 @@ public class PoliceController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    // --------- วาดเส้นในโหมด Edit ---------
     void OnDrawGizmos()
     {
         if (!showPathsInEditMode) return;
@@ -520,6 +591,68 @@ public class PoliceController : MonoBehaviour
         {
             UnityEditor.Handles.color = new Color(0.2f, 1f, 0.2f, 0.9f); // เขียวอ่อน
             UnityEditor.Handles.DrawAAPolyLine(gizmoLineThickness, path.corners);
+        }
+    }
+
+    // --------- Gizmos ตอนเลือกวัตถุใน Play Mode (ของเดิม) ---------
+    void OnDrawGizmosSelected()
+    {
+        if (!debugDrawGizmos) return;
+
+        Vector3 origin = transform.position + Vector3.up * losHeightOffset;
+
+        // Detect / LoseSight
+        Gizmos.color = new Color(0f, 1f, 1f, 0.35f);
+        Gizmos.DrawWireSphere(origin, detectRadius);
+        Gizmos.color = new Color(1f, 0.5f, 0f, 0.25f);
+        Gizmos.DrawWireSphere(origin, loseSightRadius);
+
+        // Patrol points
+        if (patrolPoints != null && patrolPoints.Length > 0)
+        {
+            Gizmos.color = Color.yellow;
+            for (int i = 0; i < patrolPoints.Length; i++)
+            {
+                if (!patrolPoints[i]) continue;
+                Vector3 p = patrolPoints[i].position + Vector3.up * 0.25f;
+                Gizmos.DrawSphere(p, 0.25f);
+                Transform next = patrolPoints[(i + 1) % patrolPoints.Length];
+                if (next) Gizmos.DrawLine(p, next.position + Vector3.up * 0.25f);
+            }
+        }
+
+        // Lane path points
+        if (lanePathPoints != null && lanePathPoints.Length > 0)
+        {
+            Gizmos.color = offLaneOverride ? new Color(1f, 0.2f, 0.2f, 0.9f) : Color.cyan; // แดงถ้ากำลังตัดเลนอยู่
+            for (int i = 0; i < lanePathPoints.Length; i++)
+            {
+                if (!lanePathPoints[i]) continue;
+                Vector3 p = lanePathPoints[i].position + Vector3.up * 0.15f;
+                Gizmos.DrawCube(p, Vector3.one * 0.25f);
+                int ni = NextLaneIndex(i, +1);
+                if (ni >= 0 && lanePathPoints[ni])
+                    Gizmos.DrawLine(p, lanePathPoints[ni].position + Vector3.up * 0.15f);
+            }
+        }
+
+        // LOS line
+        if (useLineOfSight && target != null)
+        {
+            Vector3 tgt = target.position + Vector3.up * losHeightOffset;
+            bool blocked = Physics.Linecast(origin, tgt, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore)
+                           && !(hit.transform.CompareTag(playerTag) || hit.transform.root.CompareTag(playerTag));
+
+            Gizmos.color = blocked ? Color.red : Color.green;
+            Gizmos.DrawLine(origin, tgt);
+        }
+
+        // Destination (runtime)
+        if (Application.isPlaying && agent != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(transform.position, agent.destination);
+            Gizmos.DrawSphere(agent.destination, 0.2f);
         }
     }
 #endif
