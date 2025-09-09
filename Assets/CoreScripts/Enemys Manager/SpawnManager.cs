@@ -14,6 +14,10 @@ public class SpawnManager : MonoBehaviour
     public int startPoliceCount = 2;     // จำนวนเริ่มต้น
     public float spawnInterval = 30f;    // เวลาระหว่างเกิด (วินาที)
 
+    [Header("Spawn Limit (Global)")]
+    [Tooltip("จำนวนสูงสุดของตำรวจที่สามารถมีอยู่พร้อมกันทั้งแมพ (0 = ไม่จำกัด)")]
+    public int maxPoliceCount = 10;
+
     [Header("Patrol Points (ทางเลือก)")]
     public Transform[] patrolPoints;     // ถ้าอยากให้มีวง patrol แบบ waypoint
 
@@ -37,6 +41,9 @@ public class SpawnManager : MonoBehaviour
 
     void Start()
     {
+        // ให้ตัวนับรวมสแกนตำรวจที่มีอยู่ในฉาก (กันกรณีมีวางไว้ล่วงหน้า/หลายสปอว์น)
+        PolicePopulationTracker.ForceRecountExisting();
+
         // เตรียม laneSets จากโหมด B (หลาย root)
         laneSets = new List<Transform[]>();
         if (lanePathRoots != null && lanePathRoots.Length > 0)
@@ -60,11 +67,15 @@ public class SpawnManager : MonoBehaviour
                 lanePathPoints[i] = lanePathRoot.GetChild(i);
         }
 
-        // สปอว์นเริ่มต้น
-        for (int i = 0; i < startPoliceCount; i++)
+        // สปอว์นเริ่มต้น — เคารพเพดานสูงสุด
+        int toSpawn = startPoliceCount;
+        if (maxPoliceCount > 0)
+            toSpawn = Mathf.Max(0, Mathf.Min(startPoliceCount, maxPoliceCount - PolicePopulationTracker.ActiveCount));
+
+        for (int i = 0; i < toSpawn; i++)
             SpawnPolice();
 
-        // ลูปสปอว์นเพิ่มตามเวลา
+        // ลูปสปอว์นเพิ่มตามเวลา (จะสปอว์นเฉพาะเมื่อยังต่ำกว่าหรือเท่ากับเพดาน)
         if (spawnInterval > 0f) StartCoroutine(SpawnRoutine());
     }
 
@@ -73,12 +84,21 @@ public class SpawnManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
+
+            // ถ้าถึงเพดานแล้ว ข้ามรอบนี้ไป
+            if (maxPoliceCount > 0 && PolicePopulationTracker.ActiveCount >= maxPoliceCount)
+                continue;
+
             SpawnPolice();
         }
     }
 
     void SpawnPolice()
     {
+        // ตรวจเพดานซ้ำอีกชั้น (กันเรียกข้าม thread/หลายสปอว์นพร้อมกัน)
+        if (maxPoliceCount > 0 && PolicePopulationTracker.ActiveCount >= maxPoliceCount)
+            return;
+
         if (!policePrefab)
         {
             Debug.LogWarning("[SpawnManager] กรุณาตั้งค่า policePrefab");
@@ -124,6 +144,10 @@ public class SpawnManager : MonoBehaviour
 
         // สร้างตัวตำรวจ
         GameObject go = Instantiate(policePrefab, spawnPos, sp.rotation);
+
+        // ติดตั้งตัวนับรวมให้ instance นี้ (ถ้ายังไม่มี)
+        if (!go.GetComponent<PolicePopulationTracker>())
+            go.AddComponent<PolicePopulationTracker>();
 
         // ตั้งค่า controller
         var pc = go.GetComponent<PoliceController>();
@@ -194,5 +218,58 @@ public class SpawnManager : MonoBehaviour
 
         Debug.LogWarning("[SpawnManager] lockToRoadArea=true แต่ไม่พบ Area 'Road' ใน Navigation; จะใช้ AllAreas แทน");
         return NavMesh.AllAreas;
+    }
+}
+
+/// <summary>
+/// ตัวนับจำนวน "ตำรวจที่แอคทีฟทั้งแมพ" แบบสากล
+/// ใส่อัตโนมัติให้ทุกตำรวจทั้งที่มีอยู่แล้วในฉาก และที่เกิดใหม่จากสปอว์น
+/// </summary>
+public class PolicePopulationTracker : MonoBehaviour
+{
+    public static int ActiveCount { get; private set; } = 0;
+    private static bool _recountDone = false;
+
+    void OnEnable()
+    {
+        ActiveCount++;
+    }
+
+    void OnDisable()
+    {
+        ActiveCount = Mathf.Max(0, ActiveCount - 1);
+    }
+
+    /// <summary>
+    /// เรียกครั้งแรกตอนเริ่มเกม เพื่อแน่ใจว่า ActiveCount สะท้อนจำนวนจริงในฉาก
+    /// จะสแกนหา PoliceController ทั้งหมด แล้วติด tracker ให้ถ้ายังไม่มี
+    /// </summary>
+    public static void ForceRecountExisting()
+    {
+        if (_recountDone) return;
+
+        ActiveCount = 0;
+
+        // หา PoliceController ทั้งหมดในฉาก (รวมที่ inactive)
+        var all = Object.FindObjectsOfType<PoliceController>(true);
+        foreach (var pc in all)
+        {
+            if (!pc) continue;
+
+            var tracker = pc.GetComponent<PolicePopulationTracker>();
+            if (!tracker)
+            {
+                // ถ้าวางไว้ในฉากอยู่แล้วและ active, การ AddComponent จะเรียก OnEnable() ให้เอง → นับอัตโนมัติ
+                tracker = pc.gameObject.AddComponent<PolicePopulationTracker>();
+            }
+            else
+            {
+                // ถ้ามี tracker อยู่แล้วและวัตถุ active → เพิ่มนับด้วยมือ (เพราะ OnEnable ผ่านไปแล้ว)
+                if (pc.gameObject.activeInHierarchy && tracker.isActiveAndEnabled)
+                    ActiveCount++;
+            }
+        }
+
+        _recountDone = true;
     }
 }
