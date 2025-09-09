@@ -58,10 +58,10 @@ MonoBehaviour:
   useLaneForPatrol: 1
   useLaneForChase: 1
   laneReachRadius: 2
-  agentSpeed: 20
-  detectRadius: 15
-  loseSightRadius: 25
-  captureRadius: 1.8
+  agentSpeed: 22
+  detectRadius: 25
+  loseSightRadius: 50
+  captureRadius: 3
   useLineOfSight: 1
   losObstacles:
     serializedVersion: 2
@@ -208,30 +208,26 @@ MonoBehaviour:
     m_RotationOrder: 4
   contactDamage: 1
   hitCooldown: 0.6
-  repathInterval: 0.1
-  nearDist: 12
-  farDist: 40
-  nearMul: 0.9
-  midMul: 1.05
-  farMul: 1.25
-  accelMin: 30
-  accelMax: 70
-  yawSpeed: 720
-  leadTimeMin: 0.35
-  leadTimeMax: 1.1
-  sampleRadius: 2
   catchUpDistance: 30
   catchUpMultiplier: 1.25
   allowTemporaryOffLane: 1
   offLaneSwitchDist: 12
   stuckTimeout: 1.75
   resumeLaneDist: 18
+  laneChaseUseIndexDistance: 1
+  laneChaseMaxStepPerTick: 2
+  avoidDisableDist: 5
+  closeChaseDistance: 2
+  lockToRoadArea: 0
+  decisionInterval: 0.08
+  debugDrawGizmos: 1
   showPathsInEditMode: 1
   showNavMeshPreviewPath: 1
   gizmoLineThickness: 3
   patrolPathColor: {r: 1, g: 1, b: 0, a: 0.9}
   lanePathColor: {r: 0, g: 1, b: 1, a: 0.9}
-  debugDrawGizmos: 1
+  minOverrideHoldTime: 0.6
+  stuckSpeedThreshold: 0.2
 --- !u!195 &8289157733743947494
 NavMeshAgent:
   m_ObjectHideFlags: 0
