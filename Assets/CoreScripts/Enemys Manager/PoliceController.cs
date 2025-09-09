@@ -31,7 +31,7 @@ public class PoliceController : MonoBehaviour
 
     [Header("Line of Sight")]
     public bool useLineOfSight = true;                    // เปิด/ปิดการมองเห็นจริงด้วย Raycast
-    public LayerMask losObstacles = ~0;                   // เลเยอร์สิ่งกีดขวางสายตา
+    public LayerMask losObstacles = ~0;                   // เลเยอร์สิ่งกีดขวางสายตา (เลือกเฉพาะกำแพง/ตึก)
     public float losHeightOffset = 1.2f;                  // ยกตำแหน่งตา (Ray origin) ให้พ้นพื้น
     public float lostGraceTime = 1.0f;                    // อนุโลมไม่มี LOS ได้กี่วินาทีระหว่างไล่
 
@@ -75,9 +75,17 @@ public class PoliceController : MonoBehaviour
     public bool laneChaseUseIndexDistance = true;     // เลือกทิศทางด้วยจำนวนก้าวบนเลน
     [Range(1, 4)] public int laneChaseMaxStepPerTick = 2; // ก้าวทีละกี่จุดต่อเฟรม
     public float avoidDisableDist = 5f;               // ระยะที่ปิด ObstacleAvoidance เพื่อกันวนใกล้ตัว
+    public float closeChaseDistance = 2.0f;           // ประชิดมาก ๆ ไล่ตรงและปิด avoidance
+
+    [Header("NavMesh Area")]
+    public bool lockToRoadArea = false;               // ล็อกเดินเฉพาะ Area "Road" ถ้ามี
+
+    [Header("Perf")]
+    public float decisionInterval = 0.08f;            // ตัดสินใจทุกกี่วินาที (ลดภาระ CPU)
+    float _nextDecisionAt;
 
     [Header("Debug Gizmos (Play Mode)")]
-    public bool debugDrawGizmos = true;        // เปิด/ปิดการวาด Gizmos ใน Scene (ตอนเล่น)
+    public bool debugDrawGizmos = true;               // เปิด/ปิดการวาด Gizmos ใน Scene (ตอนเล่น)
 
     [Header("Editor Debug (Edit Mode)")]
     public bool showPathsInEditMode = true;           // โชว์เส้นทางในโหมด Edit
@@ -95,11 +103,24 @@ public class PoliceController : MonoBehaviour
     Vector3 lastKnownTargetPos;
     float timeSinceHadLOS = 999f;
 
+    // hysteresis เวลาในการสลับ offLaneOverride
+    public float minOverrideHoldTime = 0.6f;
+    float _overrideChangedAt;
+
+    // stuck ตรวจด้วยความเร็ว
+    public float stuckSpeedThreshold = 0.2f;
+
     // ---------- Init ----------
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         agent.autoBraking = false;
+
+        if (lockToRoadArea)
+        {
+            int road = NavMesh.GetAreaFromName("Road");
+            if (road >= 0) agent.areaMask = 1 << road;
+        }
     }
 
     void Start()
@@ -123,14 +144,31 @@ public class PoliceController : MonoBehaviour
     {
         // กันโดนชนตั้งแต่เฟรมแรกหลังเกิด
         nextHitAt = Time.time + 0.5f;
-        offLaneOverride = false;
+        SetOffLaneOverride(false, force: true);
         lastChaseProgressDist = float.MaxValue;
         lastChaseProgressTime = Time.time;
+        _nextDecisionAt = 0f;
+    }
+
+    void OnValidate()
+    {
+        patrolWaitTime = Mathf.Max(0f, patrolWaitTime);
+        laneReachRadius = Mathf.Max(0.05f, laneReachRadius);
+        catchUpDistance = Mathf.Max(0f, catchUpDistance);
+        decisionInterval = Mathf.Clamp(decisionInterval, 0.02f, 0.5f);
+        closeChaseDistance = Mathf.Max(0.1f, closeChaseDistance);
+        avoidDisableDist = Mathf.Max(0f, avoidDisableDist);
+        stuckTimeout = Mathf.Max(0.2f, stuckTimeout);
+        minOverrideHoldTime = Mathf.Clamp(minOverrideHoldTime, 0f, 3f);
     }
 
     // ----------------------------- Update Loop -----------------------------
     void Update()
     {
+        // ตัดสินใจเป็นช่วง ๆ เพื่อลดภาระ
+        if (Time.time < _nextDecisionAt) return;
+        _nextDecisionAt = Time.time + decisionInterval;
+
         // agent.speed ใช้ agentSpeed เป็นฐาน แล้วไปเพิ่ม/ลดชั่วคราวตอน Chase
         agent.speed = agentSpeed;
 
@@ -150,16 +188,13 @@ public class PoliceController : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, target.position);
 
+        // ตรวจ Line of Sight แบบเบา: ไม่มีอะไรกีดขวางในเลเยอร์ losObstacles = เห็น
         bool hasLOS = true;
         if (useLineOfSight)
         {
             Vector3 eyeFrom = transform.position + Vector3.up * losHeightOffset;
             Vector3 eyeTo = target.position + Vector3.up * losHeightOffset;
-
-            if (Physics.Linecast(eyeFrom, eyeTo, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore))
-            {
-                hasLOS = hit.transform.CompareTag(playerTag) || hit.transform.root.CompareTag(playerTag);
-            }
+            hasLOS = !Physics.Linecast(eyeFrom, eyeTo, losObstacles, QueryTriggerInteraction.Ignore);
         }
 
         switch (state)
@@ -170,7 +205,7 @@ public class PoliceController : MonoBehaviour
                     state = State.Chase;
                     lastKnownTargetPos = target.position;
                     timeSinceHadLOS = 0f;
-                    offLaneOverride = false;
+                    SetOffLaneOverride(false, force: true);
                     lastChaseProgressDist = dist;
                     lastChaseProgressTime = Time.time;
                 }
@@ -179,14 +214,14 @@ public class PoliceController : MonoBehaviour
 
             case State.Chase:
                 if (hasLOS) { lastKnownTargetPos = target.position; timeSinceHadLOS = 0f; }
-                else { timeSinceHadLOS += Time.deltaTime; }
+                else { timeSinceHadLOS += decisionInterval; }
 
                 if (dist > loseSightRadius || timeSinceHadLOS >= lostGraceTime)
                 {
                     state = State.Search;
                     searchTimer = 0f;
                     agent.destination = lastKnownTargetPos;
-                    offLaneOverride = false;
+                    SetOffLaneOverride(false);
                     break;
                 }
 
@@ -200,18 +235,13 @@ public class PoliceController : MonoBehaviour
                 // เงื่อนไข "ตัดเลนชั่วคราว"
                 if (allowTemporaryOffLane)
                 {
-                    // 1) ใกล้ผู้เล่นมากพอ -> ตัดเลนเพื่อเข้าหาทันที
-                    if (dist <= offLaneSwitchDist) offLaneOverride = true;
-
-                    // 2) ติด (ไม่มีความคืบหน้า) เกินเวลา -> ตัดเลน
-                    if ((Time.time - lastChaseProgressTime) >= stuckTimeout) offLaneOverride = true;
-
-                    // 3) ถ้าตัดเลนอยู่แล้ว และห่างออกไปมาก -> กลับไปตามเลน
-                    if (offLaneOverride && dist >= resumeLaneDist) offLaneOverride = false;
+                    if (dist <= offLaneSwitchDist) SetOffLaneOverride(true); // ประชิด → ตัดเลน
+                    if (IsAgentStuck() && (Time.time - lastChaseProgressTime) >= stuckTimeout) SetOffLaneOverride(true);
+                    if (offLaneOverride && dist >= resumeLaneDist) SetOffLaneOverride(false);
                 }
                 else
                 {
-                    offLaneOverride = false;
+                    SetOffLaneOverride(false);
                 }
 
                 ChaseTick(dist);
@@ -224,13 +254,13 @@ public class PoliceController : MonoBehaviour
                     timeSinceHadLOS = 0f;
                     lastChaseProgressDist = dist;
                     lastChaseProgressTime = Time.time;
-                    offLaneOverride = false;
+                    SetOffLaneOverride(false, force: true);
                     break;
                 }
 
                 if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.05f)
                 {
-                    searchTimer += Time.deltaTime;
+                    searchTimer += decisionInterval;
                     if (searchTimer >= searchDuration)
                     {
                         ReturnToClosestPatrol();
@@ -269,8 +299,16 @@ public class PoliceController : MonoBehaviour
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.05f)
         {
-            if (!IsInvoking(nameof(GoNextPatrol)))
-                Invoke(nameof(GoNextPatrol), patrolWaitTime);
+            patrolWaitTimer += decisionInterval;
+            if (patrolWaitTimer >= patrolWaitTime)
+            {
+                patrolWaitTimer = 0f;
+                GoNextPatrol();
+            }
+        }
+        else
+        {
+            patrolWaitTimer = 0f;
         }
     }
 
@@ -317,7 +355,16 @@ public class PoliceController : MonoBehaviour
     // ------------------------------ Chase (แก้ทิศทาง/วน) ------------------------------
     void ChaseTick(float currentDistToPlayer)
     {
-        // ลดการวน/ถอยหนีเมื่อใกล้ตัว: ปิด ObstacleAvoidance ชั่วคราว
+        // ประชิดมาก ๆ → ไล่ตรงและปิด avoidance กันวน
+        if (currentDistToPlayer <= closeChaseDistance)
+        {
+            if (agent != null) agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+            agent.destination = target.position;
+            SpeedWithCatchUp(currentDistToPlayer);
+            return;
+        }
+
+        // ลดการวน/ถอยหนีเมื่อใกล้ตัว: ปิด/เปิด ObstacleAvoidance ตามระยะ
         if (agent != null)
         {
             agent.obstacleAvoidanceType = (currentDistToPlayer <= avoidDisableDist)
@@ -344,7 +391,7 @@ public class PoliceController : MonoBehaviour
                 }
                 else
                 {
-                    // โหมดเดิม (ไม่แนะนำ): เทียบระยะยูคลิเดียนจาก forward/backward ไปยัง playerIdx
+                    // โหมดเดิม (ไม่แนะนำ)
                     int forward = NextLaneIndex(laneIndex, +1);
                     int backward = NextLaneIndex(laneIndex, -1);
                     float df = (lanePathPoints[forward].position - lanePathPoints[playerIdx].position).sqrMagnitude;
@@ -363,7 +410,7 @@ public class PoliceController : MonoBehaviour
                 float distNextToPlayer = Vector3.Distance(nextLanePos, target.position);
                 if (allowTemporaryOffLane && distNextToPlayer > currentDistToPlayer * 1.05f)
                 {
-                    offLaneOverride = true;
+                    SetOffLaneOverride(true);
                     agent.destination = target.position;
                 }
             }
@@ -378,7 +425,11 @@ public class PoliceController : MonoBehaviour
             agent.destination = target.position;
         }
 
-        // เพิ่มอารมณ์ rush: เร่งตามเมื่อห่างมาก
+        SpeedWithCatchUp(currentDistToPlayer);
+    }
+
+    void SpeedWithCatchUp(float currentDistToPlayer)
+    {
         float spd = agentSpeed;
         if (currentDistToPlayer > catchUpDistance) spd *= catchUpMultiplier;
         agent.speed = spd;
@@ -437,10 +488,7 @@ public class PoliceController : MonoBehaviour
     {
         if (len <= 0 || from == to) return +1;
 
-        if (!looped)
-        {
-            return (to > from) ? +1 : -1;
-        }
+        if (!looped) return (to > from) ? +1 : -1;
 
         int fwd = (to - from + len) % len;
         int bwd = (from - to + len) % len;
@@ -513,6 +561,21 @@ public class PoliceController : MonoBehaviour
 
         // เริ่มคูลดาวน์ใหม่ทุกครั้งหลังชน
         nextHitAt = Time.time + hitCooldown;
+    }
+
+    // -------- Hysteresis helper --------
+    void SetOffLaneOverride(bool value, bool force = false)
+    {
+        if (!force && offLaneOverride == value) return;
+        if (!force && (Time.time - _overrideChangedAt) < minOverrideHoldTime) return;
+        offLaneOverride = value;
+        _overrideChangedAt = Time.time;
+    }
+
+    bool IsAgentStuck()
+    {
+        if (agent == null) return false;
+        return agent.velocity.sqrMagnitude < (stuckSpeedThreshold * stuckSpeedThreshold);
     }
 
 #if UNITY_EDITOR
@@ -594,7 +657,7 @@ public class PoliceController : MonoBehaviour
         }
     }
 
-    // --------- Gizmos ตอนเลือกวัตถุใน Play Mode (ของเดิม) ---------
+    // --------- Gizmos ตอนเลือกวัตถุใน Play Mode ---------
     void OnDrawGizmosSelected()
     {
         if (!debugDrawGizmos) return;
@@ -636,14 +699,11 @@ public class PoliceController : MonoBehaviour
             }
         }
 
-        // LOS line
+        // LOS line (เฉพาะบอกทิศ)
         if (useLineOfSight && target != null)
         {
             Vector3 tgt = target.position + Vector3.up * losHeightOffset;
-            bool blocked = Physics.Linecast(origin, tgt, out RaycastHit hit, losObstacles, QueryTriggerInteraction.Ignore)
-                           && !(hit.transform.CompareTag(playerTag) || hit.transform.root.CompareTag(playerTag));
-
-            Gizmos.color = blocked ? Color.red : Color.green;
+            Gizmos.color = Color.green;
             Gizmos.DrawLine(origin, tgt);
         }
 
