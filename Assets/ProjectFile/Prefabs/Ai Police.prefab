@@ -59,9 +59,11 @@ MonoBehaviour:
   useLaneForPatrol: 1
   useLaneForChase: 1
   laneReachRadius: 2
-  agentSpeed: 22
-  detectRadius: 30
-  loseSightRadius: 50
+  editSpeedInKmh: 1
+  baseTopKmh: 216
+  agentSpeed: 60.000004
+  detectRadius: 50
+  loseSightRadius: 80
   captureRadius: 3
   useLineOfSight: 1
   losObstacles:
@@ -220,6 +222,9 @@ MonoBehaviour:
   avoidDisableDist: 5
   closeChaseDistance: 2
   lockToRoadArea: 0
+  navAutoBraking: 0
+  agentAngularSpeedMax: 1200
+  agentAngularSpeedMin: 60
   decisionInterval: 0.08
   debugDrawGizmos: 1
   showPathsInEditMode: 1
@@ -227,8 +232,30 @@ MonoBehaviour:
   gizmoLineThickness: 3
   patrolPathColor: {r: 1, g: 1, b: 0, a: 0.9}
   lanePathColor: {r: 0, g: 1, b: 1, a: 0.9}
-  minOverrideHoldTime: 0.6
-  stuckSpeedThreshold: 0.2
+  speedAccelRate: 8
+  speedDecelRate: 25
+  smartBraking: 1
+  brakingSafety: 3
+  minCornerLookAhead: 5
+  cornerAngleForSlow: 35
+  cornerSlowdownAt90: 0.55
+  cornerSlowdownAt135: 0.4
+  disableSmartBrakingInChase: 1
+  disableAutoBrakingInChase: 1
+  softenCornerInChase: 0
+  chaseMinSpeed: 5
+  smartBrakingMinRemDist: 6
+  predictivePursuit: 1
+  leadTimeMin: 0.15
+  leadTimeMax: 0.9
+  leadTimePerMeter: 0.02
+  catchUpBoostByGap: 1
+  boostStartDist: 15
+  boostFullDist: 60
+  maxCatchupMul: 1.6
+  avoidNavMeshEdges: 1
+  edgeMinDistance: 0.6
+  edgeExtraPush: 0.15
 --- !u!195 &8289157733743947494
 NavMeshAgent:
   m_ObjectHideFlags: 0
