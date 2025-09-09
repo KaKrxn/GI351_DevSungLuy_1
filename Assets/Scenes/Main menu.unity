@@ -18533,7 +18533,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &435557813
 Transform:
   m_ObjectHideFlags: 0
@@ -19653,35 +19653,37 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   points:
   - {fileID: 1511672243}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 715569415}
+  - {fileID: 116909236}
+  - {fileID: 246426735}
+  - {fileID: 916101164}
+  - {fileID: 1472165964}
+  - {fileID: 1463545486}
+  - {fileID: 9896103}
+  - {fileID: 1324742186}
+  - {fileID: 713375786}
+  - {fileID: 1624700333}
+  - {fileID: 1748292371}
+  - {fileID: 409968504}
+  - {fileID: 148396096}
+  - {fileID: 10553722}
+  - {fileID: 135206045}
+  - {fileID: 1672372515}
+  - {fileID: 964047091}
+  - {fileID: 183524047}
+  - {fileID: 1154872313}
+  - {fileID: 1185121323}
+  - {fileID: 843071165}
+  - {fileID: 163117671}
+  - {fileID: 1634493198}
+  - {fileID: 814253046}
+  - {fileID: 959467132}
+  - {fileID: 1991496176}
+  - {fileID: 363365307}
+  - {fileID: 1991238612}
+  - {fileID: 1793369376}
+  - {fileID: 272525513}
+  - {fileID: 1857141431}
   markerPrefab: {fileID: 5616240997398601456, guid: 1e8d705e8b76d3e4b8a4e81656feb185, type: 3}
   playerTag: Player
   avoidImmediateRepeat: 1
@@ -63616,6 +63618,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1451791943}
   - component: {fileID: 1451791944}
+  - component: {fileID: 1451791945}
   m_Layer: 5
   m_Name: Hud
   m_TagString: Untagged
@@ -63637,6 +63640,7 @@ RectTransform:
   m_Children:
   - {fileID: 550134130}
   - {fileID: 1217227844}
+  - {fileID: 1712927226}
   m_Father: {fileID: 1480315388}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -63652,6 +63656,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1451791942}
   m_CullTransparentMesh: 1
+--- !u!114 &1451791945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1451791942}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e04b65c6c04ebb646a15e9998f6fee4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  arrow: {fileID: 1712927227}
+  policeTag: Enemy
+  rescanInterval: 0.5
 --- !u!1001 &1452026459
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -74965,6 +74984,105 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.8000008, y: 2.2166052, z: 0.16000009}
   m_Center: {x: 0.0037388206, y: 1.1083026, z: 0.017283335}
+--- !u!1 &1712927225
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1712927226}
+  - component: {fileID: 1712927229}
+  - component: {fileID: 1712927228}
+  - component: {fileID: 1712927227}
+  m_Layer: 5
+  m_Name: ArrowPolice
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1712927226
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712927225}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1451791943}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 733.97046, y: -507.8849}
+  m_SizeDelta: {x: -1890.059, y: -1045.7698}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1712927227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712927225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b540c0b608f5f4d44aa8572bc7fdbf3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 0}
+  arrow: {fileID: 0}
+  container: {fileID: 0}
+  pickNearest: 1
+  candidates: []
+  hideWhenAnyCandidateVisible: 0
+  hideArrowWhenOnScreen: 0
+  edgePadding: 34
+  positionLerp: 14
+  rotationLerp: 18
+  clampInside: 0
+--- !u!114 &1712927228
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712927225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: d6e3e463dd26a1545aa2b297dc79fd63, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1712927229
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712927225}
+  m_CullTransparentMesh: 1
 --- !u!1001 &1713853166
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -94553,7 +94671,6 @@ MonoBehaviour:
   - {fileID: 1196038392}
   startPoliceCount: 2
   spawnInterval: 30
-  maxPoliceCount: 10
   patrolPoints:
   - {fileID: 414556978}
   - {fileID: 1978492435}
@@ -94568,6 +94685,7 @@ MonoBehaviour:
   lockToRoadArea: 0
   applyHeatFromHere: 0
   startHeat: 1
+  arrowPointer: {fileID: 1712927227}
 --- !u!4 &2118287074
 Transform:
   m_ObjectHideFlags: 0

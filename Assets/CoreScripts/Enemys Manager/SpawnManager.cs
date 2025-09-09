@@ -14,10 +14,6 @@ public class SpawnManager : MonoBehaviour
     public int startPoliceCount = 2;     // จำนวนเริ่มต้น
     public float spawnInterval = 30f;    // เวลาระหว่างเกิด (วินาที)
 
-    [Header("Spawn Limit (Global)")]
-    [Tooltip("จำนวนสูงสุดของตำรวจที่สามารถมีอยู่พร้อมกันทั้งแมพ (0 = ไม่จำกัด)")]
-    public int maxPoliceCount = 10;
-
     [Header("Patrol Points (ทางเลือก)")]
     public Transform[] patrolPoints;     // ถ้าอยากให้มีวง patrol แบบ waypoint
 
@@ -36,14 +32,15 @@ public class SpawnManager : MonoBehaviour
     public bool applyHeatFromHere = false;
     [Range(1, 5)] public int startHeat = 1;
 
+    // ============ เพิ่มมาใหม่: สำหรับลูกศรชี้ตำรวจ ============
+    [Header("UI Arrow (Optional)")]
+    public ArrowPointer_Offscreen arrowPointer;  // ลูกศรชี้ตำรวจใน Canvas (ไม่ตั้งจะค้นหาให้)
+
     // ===== RUNTIME =====
     private List<Transform[]> laneSets;  // เก็บชุดเลนจากหลาย root
 
     void Start()
     {
-        // ให้ตัวนับรวมสแกนตำรวจที่มีอยู่ในฉาก (กันกรณีมีวางไว้ล่วงหน้า/หลายสปอว์น)
-        PolicePopulationTracker.ForceRecountExisting();
-
         // เตรียม laneSets จากโหมด B (หลาย root)
         laneSets = new List<Transform[]>();
         if (lanePathRoots != null && lanePathRoots.Length > 0)
@@ -58,24 +55,11 @@ public class SpawnManager : MonoBehaviour
             }
         }
 
-        // โหมด A: ถ้าใส่ root เดียวและยังไม่มี array → ดึงลูก ๆ มาเป็นอาเรย์
-        if (lanePathRoot && (lanePathPoints == null || lanePathPoints.Length == 0))
-        {
-            int childCount = lanePathRoot.childCount;
-            lanePathPoints = new Transform[childCount];
-            for (int i = 0; i < childCount; i++)
-                lanePathPoints[i] = lanePathRoot.GetChild(i);
-        }
-
-        // สปอว์นเริ่มต้น — เคารพเพดานสูงสุด
-        int toSpawn = startPoliceCount;
-        if (maxPoliceCount > 0)
-            toSpawn = Mathf.Max(0, Mathf.Min(startPoliceCount, maxPoliceCount - PolicePopulationTracker.ActiveCount));
-
-        for (int i = 0; i < toSpawn; i++)
+        // สปอว์นเริ่มต้น
+        for (int i = 0; i < Mathf.Max(0, startPoliceCount); i++)
             SpawnPolice();
 
-        // ลูปสปอว์นเพิ่มตามเวลา (จะสปอว์นเฉพาะเมื่อยังต่ำกว่าหรือเท่ากับเพดาน)
+        // ลูปสปอว์นเพิ่มตามเวลา
         if (spawnInterval > 0f) StartCoroutine(SpawnRoutine());
     }
 
@@ -84,21 +68,12 @@ public class SpawnManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
-
-            // ถ้าถึงเพดานแล้ว ข้ามรอบนี้ไป
-            if (maxPoliceCount > 0 && PolicePopulationTracker.ActiveCount >= maxPoliceCount)
-                continue;
-
             SpawnPolice();
         }
     }
 
     void SpawnPolice()
     {
-        // ตรวจเพดานซ้ำอีกชั้น (กันเรียกข้าม thread/หลายสปอว์นพร้อมกัน)
-        if (maxPoliceCount > 0 && PolicePopulationTracker.ActiveCount >= maxPoliceCount)
-            return;
-
         if (!policePrefab)
         {
             Debug.LogWarning("[SpawnManager] กรุณาตั้งค่า policePrefab");
@@ -136,7 +111,7 @@ public class SpawnManager : MonoBehaviour
                 }
                 if (!found)
                 {
-                    Debug.LogError("[SpawnManager] หา NavMesh ใกล้จุดเกิดไม่เจอ (เช็กการ Bake/AreaMask)");
+                    Debug.LogWarning("[SpawnManager] Sample NavMesh ใกล้จุดเกิดไม่เจอ (เช็กการ Bake/AreaMask)");
                     return;
                 }
             }
@@ -144,10 +119,6 @@ public class SpawnManager : MonoBehaviour
 
         // สร้างตัวตำรวจ
         GameObject go = Instantiate(policePrefab, spawnPos, sp.rotation);
-
-        // ติดตั้งตัวนับรวมให้ instance นี้ (ถ้ายังไม่มี)
-        if (!go.GetComponent<PolicePopulationTracker>())
-            go.AddComponent<PolicePopulationTracker>();
 
         // ตั้งค่า controller
         var pc = go.GetComponent<PoliceController>();
@@ -174,11 +145,21 @@ public class SpawnManager : MonoBehaviour
 
         // ตั้ง Heat จากนี่ (ถ้าเลือกใช้)
         if (applyHeatFromHere) pc.ApplyHeat(startHeat);
+
+        // ============ เพิ่มมาใหม่: ลงทะเบียนให้ลูกศรรู้จักตำรวจคันนี้ทันที ============
+        var arrowRef = arrowPointer ? arrowPointer : FindObjectOfType<ArrowPointer_Offscreen>();
+        if (arrowRef)
+        {
+            // บอกลูกศรว่ามีคันนี้เกิดแล้ว และติดฮุคไว้จัดการ unregister ตอนปิด/ทำลาย
+            arrowRef.RegisterCandidate(go.transform);
+            var hook = go.GetComponent<ArrowCandidateHook>();
+            if (!hook) hook = go.AddComponent<ArrowCandidateHook>();
+            hook.Bind(arrowRef, go.transform);
+        }
     }
 
     // -------- Helpers --------
 
-    // รวมตรรกะเลือก "ชุดเลน" ที่จะส่งให้ตำรวจคันนี้
     Transform[] ResolveLanePointsForThisSpawn()
     {
         // โหมด B: ถ้ามีหลาย root → สุ่มเลือกชุด
@@ -221,55 +202,39 @@ public class SpawnManager : MonoBehaviour
     }
 }
 
-/// <summary>
-/// ตัวนับจำนวน "ตำรวจที่แอคทีฟทั้งแมพ" แบบสากล
-/// ใส่อัตโนมัติให้ทุกตำรวจทั้งที่มีอยู่แล้วในฉาก และที่เกิดใหม่จากสปอว์น
-/// </summary>
-public class PolicePopulationTracker : MonoBehaviour
+// ============ เพิ่มมาใหม่: ตัวช่วยจัดการวงจรชีวิตของเป้าหมายบนลูกศร ============
+public class ArrowCandidateHook : MonoBehaviour
 {
-    public static int ActiveCount { get; private set; } = 0;
-    private static bool _recountDone = false;
+    ArrowPointer_Offscreen arrow;
+    Transform target;
+    bool registered;
+
+    public void Bind(ArrowPointer_Offscreen a, Transform t)
+    {
+        arrow = a;
+        target = t;
+        // หากอินสแตนซ์ถูกสร้างแล้วและ enable อยู่ จะ re-register ใน OnEnable
+    }
 
     void OnEnable()
     {
-        ActiveCount++;
+        if (arrow && target && !registered)
+        {
+            arrow.RegisterCandidate(target);
+            registered = true;
+        }
     }
 
     void OnDisable()
     {
-        ActiveCount = Mathf.Max(0, ActiveCount - 1);
+        if (registered && arrow && target)
+            arrow.UnregisterCandidate(target);
+        registered = false;
     }
 
-    /// <summary>
-    /// เรียกครั้งแรกตอนเริ่มเกม เพื่อแน่ใจว่า ActiveCount สะท้อนจำนวนจริงในฉาก
-    /// จะสแกนหา PoliceController ทั้งหมด แล้วติด tracker ให้ถ้ายังไม่มี
-    /// </summary>
-    public static void ForceRecountExisting()
+    void OnDestroy()
     {
-        if (_recountDone) return;
-
-        ActiveCount = 0;
-
-        // หา PoliceController ทั้งหมดในฉาก (รวมที่ inactive)
-        var all = Object.FindObjectsOfType<PoliceController>(true);
-        foreach (var pc in all)
-        {
-            if (!pc) continue;
-
-            var tracker = pc.GetComponent<PolicePopulationTracker>();
-            if (!tracker)
-            {
-                // ถ้าวางไว้ในฉากอยู่แล้วและ active, การ AddComponent จะเรียก OnEnable() ให้เอง → นับอัตโนมัติ
-                tracker = pc.gameObject.AddComponent<PolicePopulationTracker>();
-            }
-            else
-            {
-                // ถ้ามี tracker อยู่แล้วและวัตถุ active → เพิ่มนับด้วยมือ (เพราะ OnEnable ผ่านไปแล้ว)
-                if (pc.gameObject.activeInHierarchy && tracker.isActiveAndEnabled)
-                    ActiveCount++;
-            }
-        }
-
-        _recountDone = true;
+        if (arrow && target)
+            arrow.UnregisterCandidate(target);
     }
 }

@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 2685785379376320990}
   - component: {fileID: 5995670618107865959}
   - component: {fileID: 2899338805136747738}
+  - component: {fileID: 2614518137257855927}
   m_Layer: 0
   m_Name: Ai Police
   m_TagString: Enemy
@@ -59,7 +60,7 @@ MonoBehaviour:
   useLaneForChase: 1
   laneReachRadius: 2
   agentSpeed: 22
-  detectRadius: 25
+  detectRadius: 30
   loseSightRadius: 50
   captureRadius: 3
   useLineOfSight: 1
@@ -319,6 +320,20 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &2614518137257855927
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 475974160751688342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f0b88c63c2c5fa41bb2329d34260880, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  arrow: {fileID: 0}
+  followTarget: {fileID: 8751568817646166346}
 --- !u!1 &3676122777543227489
 GameObject:
   m_ObjectHideFlags: 0
