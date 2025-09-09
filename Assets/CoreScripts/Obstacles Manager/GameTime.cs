@@ -124,7 +124,7 @@ public class GameTimer : MonoBehaviour
         delivery?.SetGameOver();
 
         // หยุดเวลา + เปิด UI
-        if (pauseOnGameOver) Time.timeScale = 0f;
+        //if (pauseOnGameOver) Time.timeScale = 0f;
         if (gameOverPanel) gameOverPanel.SetActive(true);
         if (showCursorOnGameOver)
         {
