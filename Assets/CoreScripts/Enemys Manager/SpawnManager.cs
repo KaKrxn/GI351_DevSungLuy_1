@@ -32,9 +32,17 @@ public class SpawnManager : MonoBehaviour
     public bool applyHeatFromHere = false;
     [Range(1, 5)] public int startHeat = 1;
 
-    // ============ เพิ่มมาใหม่: สำหรับลูกศรชี้ตำรวจ ============
+    // ============ สำหรับลูกศรชี้ตำรวจ ============
     [Header("UI Arrow (Optional)")]
     public ArrowPointer_Offscreen arrowPointer;  // ลูกศรชี้ตำรวจใน Canvas (ไม่ตั้งจะค้นหาให้)
+
+    // ============ ใหม่: เพดานจำนวนตำรวจพร้อมกัน ============
+    [Header("Population Cap")]
+    public bool useMaxPoliceCap = true;
+    [Min(0)] public int maxPoliceAlive = 8;     // ปรับได้ตามต้องการ
+    private readonly HashSet<SpawnedPoliceHook> alive = new HashSet<SpawnedPoliceHook>();
+    public int CurrentAliveCount => alive.Count;
+    bool CanSpawnMore() => !useMaxPoliceCap || alive.Count < Mathf.Max(0, maxPoliceAlive);
 
     // ===== RUNTIME =====
     private List<Transform[]> laneSets;  // เก็บชุดเลนจากหลาย root
@@ -55,7 +63,7 @@ public class SpawnManager : MonoBehaviour
             }
         }
 
-        // สปอว์นเริ่มต้น
+        // สปอว์นเริ่มต้น (จะเคารพเพดานอัตโนมัติ)
         for (int i = 0; i < Mathf.Max(0, startPoliceCount); i++)
             SpawnPolice();
 
@@ -74,6 +82,14 @@ public class SpawnManager : MonoBehaviour
 
     void SpawnPolice()
     {
+        // ---- เช็คเพดานก่อน ----
+        if (!CanSpawnMore())
+        {
+            // ไม่สปอว์นเพิ่มถ้าเต็มเพดาน
+            // Debug.Log("[SpawnManager] police cap reached: " + CurrentAliveCount + "/" + maxPoliceAlive);
+            return;
+        }
+
         if (!policePrefab)
         {
             Debug.LogWarning("[SpawnManager] กรุณาตั้งค่า policePrefab");
@@ -120,6 +136,11 @@ public class SpawnManager : MonoBehaviour
         // สร้างตัวตำรวจ
         GameObject go = Instantiate(policePrefab, spawnPos, sp.rotation);
 
+        // ติดตัว hook สำหรับแจ้งเข้า/ออก (รองรับ Destroy/Disable/Enable)
+        var life = go.GetComponent<SpawnedPoliceHook>();
+        if (!life) life = go.AddComponent<SpawnedPoliceHook>();
+        life.Bind(this);
+
         // ตั้งค่า controller
         var pc = go.GetComponent<PoliceController>();
         if (!pc)
@@ -146,7 +167,7 @@ public class SpawnManager : MonoBehaviour
         // ตั้ง Heat จากนี่ (ถ้าเลือกใช้)
         if (applyHeatFromHere) pc.ApplyHeat(startHeat);
 
-        // ============ เพิ่มมาใหม่: ลงทะเบียนให้ลูกศรรู้จักตำรวจคันนี้ทันที ============
+        // ============ ลงทะเบียนให้ลูกศรรู้จักตำรวจคันนี้ทันที ============
         var arrowRef = arrowPointer ? arrowPointer : FindObjectOfType<ArrowPointer_Offscreen>();
         if (arrowRef)
         {
@@ -156,6 +177,16 @@ public class SpawnManager : MonoBehaviour
             if (!hook) hook = go.AddComponent<ArrowCandidateHook>();
             hook.Bind(arrowRef, go.transform);
         }
+    }
+
+    // ===== Registry for cap =====
+    public void RegisterAlive(SpawnedPoliceHook h)
+    {
+        if (h != null) alive.Add(h);
+    }
+    public void UnregisterAlive(SpawnedPoliceHook h)
+    {
+        if (h != null) alive.Remove(h);
     }
 
     // -------- Helpers --------
@@ -202,7 +233,7 @@ public class SpawnManager : MonoBehaviour
     }
 }
 
-// ============ เพิ่มมาใหม่: ตัวช่วยจัดการวงจรชีวิตของเป้าหมายบนลูกศร ============
+// ============ ช่วยจัดการวงจรชีวิตของเป้าหมายบนลูกศร ============
 public class ArrowCandidateHook : MonoBehaviour
 {
     ArrowPointer_Offscreen arrow;
@@ -236,5 +267,44 @@ public class ArrowCandidateHook : MonoBehaviour
     {
         if (arrow && target)
             arrow.UnregisterCandidate(target);
+    }
+}
+
+// ============ ใหม่: Hook ของตำรวจแต่ละคัน เพื่อแจ้งเข้า/ออกแก่ SpawnManager ============
+public class SpawnedPoliceHook : MonoBehaviour
+{
+    private SpawnManager owner;
+    private bool registered;
+
+    public void Bind(SpawnManager m)
+    {
+        owner = m;
+    }
+
+    void OnEnable()
+    {
+        if (owner != null && !registered)
+        {
+            owner.RegisterAlive(this);
+            registered = true;
+        }
+    }
+
+    void OnDisable()
+    {
+        if (owner != null && registered)
+        {
+            owner.UnregisterAlive(this);
+            registered = false;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (owner != null && registered)
+        {
+            owner.UnregisterAlive(this);
+            registered = false;
+        }
     }
 }
