@@ -48,6 +48,7 @@ public class DriftFXController : MonoBehaviour
 
     void Awake()
     {
+        particlePrefab.Stop();
         if (!player) player = GetComponentInParent<PlayerController>();
         if (!rb) rb = player ? player.GetComponent<Rigidbody>() : GetComponentInParent<Rigidbody>();
 
