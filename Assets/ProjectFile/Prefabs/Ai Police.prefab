@@ -89,7 +89,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  autoHeat: 1
+  autoHeat: 0
   currentHeat: 1
   speedByHeat:
     serializedVersion: 2
