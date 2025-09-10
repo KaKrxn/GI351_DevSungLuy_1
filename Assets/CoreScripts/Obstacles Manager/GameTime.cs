@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;        // << สำหรับ Button
 using TMPro;
+using System.Collections;
 
 public class GameTimer : MonoBehaviour
 {
@@ -124,12 +125,21 @@ public class GameTimer : MonoBehaviour
         delivery?.SetGameOver();
 
         // หยุดเวลา + เปิด UI
-        if (pauseOnGameOver) Time.timeScale = 0f;
+        //if (pauseOnGameOver) Time.timeScale = 0f;
         if (gameOverPanel) gameOverPanel.SetActive(true);
         if (showCursorOnGameOver)
         {
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
+
+            // เรียกใช้ Coroutine เพื่อรอ 5 วินาที
+            StartCoroutine(WaitAndLoadScene(5f));
+        }
+
+        IEnumerator WaitAndLoadScene(float waitTime)
+        {
+            yield return new WaitForSeconds(waitTime);
+            SceneManager.LoadScene("Home");
         }
     }
 

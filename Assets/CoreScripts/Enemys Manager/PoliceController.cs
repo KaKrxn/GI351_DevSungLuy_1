@@ -2,10 +2,12 @@
 using UnityEngine.AI;
 using UnityEngine.Events;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class PoliceController : MonoBehaviour
 {
+    public GameTimer gameTimer;
     [Header("Target")]
     public Transform target;
     public string playerTag = "Player";
@@ -148,6 +150,8 @@ public class PoliceController : MonoBehaviour
     public float boostFullDist = 60f;
     public float maxCatchupMul = 1.6f;
 
+    public GameObject gameOverPanel;
+
     // ---------- NavMesh Edge Repel ----------
     [Header("NavMesh Edge Repel")]
     public bool avoidNavMeshEdges = true;
@@ -178,6 +182,7 @@ public class PoliceController : MonoBehaviour
         agent.stoppingDistance = Mathf.Max(agent.stoppingDistance, 0.25f);
         agent.acceleration = Mathf.Max(agent.acceleration, speedAccelRate * 1.5f);
         ApplyAngularSpeed(0f);
+        if (!gameTimer) gameTimer = FindFirstObjectByType<GameTimer>(); // หาให้เองถ้าไม่ลากมา
 
         if (lockToRoadArea)
         {
@@ -709,16 +714,23 @@ public class PoliceController : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
-        if (Time.time < nextHitAt) return;
 
-        var hp = other.GetComponent<PlayerHealth>();
-        if (hp != null)
-        {
-            hp.TakeDamage(contactDamage);
-            onPlayerHit?.Invoke();
+        if (other.CompareTag(playerTag)) {
+            SceneManager.LoadScene("Home");
         }
-        nextHitAt = Time.time + hitCooldown;
+        
+        //if (!other.CompareTag(playerTag)) return;
+        //if (Time.time < nextHitAt) return;
+
+        //var hp = other.GetComponent<PlayerHealth>();
+        //if (hp != null)
+        //{
+        //    hp.TakeDamage(contactDamage);
+        //    onPlayerHit?.Invoke();
+        //}
+        //nextHitAt = Time.time + hitCooldown;
+
+
     }
 
     // -------- Helpers: pursuit & edge repel --------

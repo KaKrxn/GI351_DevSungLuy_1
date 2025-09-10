@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 8724413154288230730}
   - component: {fileID: 8289157733743947494}
   - component: {fileID: 2685785379376320990}
-  - component: {fileID: 5995670618107865959}
   - component: {fileID: 2899338805136747738}
   - component: {fileID: 2614518137257855927}
   - component: {fileID: -7198628991578407120}
@@ -255,6 +254,7 @@ MonoBehaviour:
   boostStartDist: 15
   boostFullDist: 60
   maxCatchupMul: 1.6
+  gameOverPanel: {fileID: 1274394124971794107, guid: 230ba4c8a2cf77445803607cee126dea, type: 3}
   avoidNavMeshEdges: 1
   edgeMinDistance: 0.6
   edgeExtraPush: 0.15
@@ -301,27 +301,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 3.1452026, y: 2.4790916, z: 6.815773}
   m_Center: {x: -0.015678406, y: 1.2175128, z: -0.42494583}
---- !u!65 &5995670618107865959
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 475974160751688342}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 3.3512726, y: 0.94874907, z: 7.3833313}
-  m_Center: {x: -0.01259613, y: 0.45503497, z: -0.2497406}
 --- !u!54 &2899338805136747738
 Rigidbody:
   m_ObjectHideFlags: 0
